@@ -23,17 +23,6 @@ impl Items {
         }
     }
 
-    fn table(&mut self) -> Table<'static> {
-            Table::new(vec![
-                Row::new(vec!["Item 1", "Item 2", "Item 3"]),
-                Row::new(vec!["Item 4", "Item 5", "Item 6"]),
-                Row::new(vec!["Item 7", "Item 8", "Item 9"]),
-            ], [
-                Constraint::Length(15),
-                Constraint::Length(15),
-                Constraint::Length(15)])
-            .header(Row::new(vec!["Header 1", "Header 2", "Header 3"]))
-    }
 }
 
 impl Component for Items {
@@ -48,7 +37,17 @@ impl Component for Items {
     }
 
     fn draw(&mut self, f: &mut Frame<'_>, area: Rect) -> Result<()> {
-        f.render_stateful_widget(self.table(), area, &mut self.state);
+        let table = Table::new(vec![
+                Row::new(vec!["Item 1", "Item 2", "Item 3"]),
+                Row::new(vec!["Item 4", "Item 5", "Item 6"]),
+                Row::new(vec!["Item 7", "Item 8", "Item 9"]),
+            ], [
+                Constraint::Length(area.width - 30),
+                Constraint::Length(15),
+                Constraint::Length(15)])
+            .header(Row::new(vec!["Header 1", "Header 2", "Header 3"]));
+
+        f.render_stateful_widget(table, area, &mut self.state);
         Ok(())
     }
 }

@@ -1,6 +1,6 @@
 use color_eyre::eyre::Result;
 use crossterm::event::KeyEvent;
-use ratatui::prelude::Rect;
+use ratatui::{prelude::Rect, layout::{Layout, Direction, Constraint}};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
@@ -10,13 +10,14 @@ use crate::{
   config::Config,
   mode::Mode,
   tui,
+  layout::HomeLayout
 };
 
 pub struct App {
   pub config: Config,
   pub tick_rate: f64,
   pub frame_rate: f64,
-  pub components: Vec<Box<dyn Component>>,
+  pub layout: Box<dyn Component>,
   pub should_quit: bool,
   pub should_suspend: bool,
   pub mode: Mode,
@@ -25,14 +26,16 @@ pub struct App {
 
 impl App {
   pub fn new(tick_rate: f64, frame_rate: f64) -> Result<Self> {
-    let items = Items::new();
-    let fps = FpsCounter::default();
     let config = Config::new()?;
     let mode = Mode::Home;
+    let layout = match mode {
+        Mode::Home => Box::new(HomeLayout::new()),
+    };
+
     Ok(Self {
       tick_rate,
       frame_rate,
-      components: vec![Box::new(items), Box::new(fps)],
+      layout,
       should_quit: false,
       should_suspend: false,
       config,
@@ -48,17 +51,9 @@ impl App {
     // tui.mouse(true);
     tui.enter()?;
 
-    for component in self.components.iter_mut() {
-      component.register_action_handler(action_tx.clone())?;
-    }
-
-    for component in self.components.iter_mut() {
-      component.register_config_handler(self.config.clone())?;
-    }
-
-    for component in self.components.iter_mut() {
-      component.init(tui.size()?)?;
-    }
+      self.layout.register_action_handler(action_tx.clone())?;
+      self.layout.register_config_handler(self.config.clone())?;
+      self.layout.init(tui.size()?)?;
 
     loop {
       if let Some(e) = tui.next().await {
@@ -87,10 +82,8 @@ impl App {
           },
           _ => {},
         }
-        for component in self.components.iter_mut() {
-          if let Some(action) = component.handle_events(Some(e.clone()))? {
+          if let Some(action) = self.layout.handle_events(Some(e.clone()))? {
             action_tx.send(action)?;
-          }
         }
       }
 
@@ -108,31 +101,25 @@ impl App {
           Action::Resize(w, h) => {
             tui.resize(Rect::new(0, 0, w, h))?;
             tui.draw(|f| {
-              for component in self.components.iter_mut() {
-                let r = component.draw(f, f.size());
+                let r = self.layout.draw(f, f.size());
                 if let Err(e) = r {
                   action_tx.send(Action::Error(format!("Failed to draw: {:?}", e))).unwrap();
                 }
-              }
             })?;
           },
           Action::Render => {
             tui.draw(|f| {
-              for component in self.components.iter_mut() {
-                let r = component.draw(f, f.size());
+                let r = self.layout.draw(f, f.size());
                 if let Err(e) = r {
                   action_tx.send(Action::Error(format!("Failed to draw: {:?}", e))).unwrap();
                 }
-              }
             })?;
           },
           _ => {},
         }
-        for component in self.components.iter_mut() {
-          if let Some(action) = component.update(action.clone())? {
+          if let Some(action) = self.layout.update(action.clone())? {
             action_tx.send(action)?
           };
-        }
       }
       if self.should_suspend {
         tui.suspend()?;
