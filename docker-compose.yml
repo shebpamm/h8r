@@ -1,0 +1,33 @@
+# This will start a haproxy and three web services. haproxy will act as a loadbalancer.
+# Authors: yeasy.github.com
+# Date: 2015-11-15
+
+version: "3.9"
+services:
+  weba:
+    image: crccheck/hello-world
+    ports:
+      - 8080:80
+    expose:
+      - 80
+  webb:
+    image: crccheck/hello-world
+    ports:
+      - 8081:80
+    expose:
+      - 80
+  webc:
+    image: crccheck/hello-world
+    ports:
+      - 8082:80
+    expose:
+      - 80
+  # haproxy:
+  #   image: haproxy
+  #   volumes:
+  #     - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+  #     - ./socket:/socket/haproxy.sock
+  #   links:
+  #     - weba
+  #     - webb
+  #     - webc
