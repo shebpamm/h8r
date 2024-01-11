@@ -92,6 +92,12 @@ impl App {
           log::debug!("{action:?}");
         }
         match action {
+          Action::MoveUp => {
+            self.layout.move_up()?;
+          },
+          Action::MoveDown => {
+            self.layout.move_down()?;
+          },
           Action::Tick => {
             self.last_tick_key_events.drain(..);
           },

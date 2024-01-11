@@ -1,12 +1,6 @@
-use color_eyre::eyre::Result;
+use color_eyre::{eyre::Result, owo_colors::OwoColorize};
 use ratatui::{prelude::*, widgets::*};
 use tokio::sync::mpsc::UnboundedSender;
-
-pub struct Items {
-  command_tx: Option<UnboundedSender<Action>>,
-  config: Config,
-  state: TableState,
-}
 
 use super::{Component, Frame};
 use crate::{
@@ -14,18 +8,40 @@ use crate::{
     config::{Config, KeyBindings},
 };
 
-impl Items {
+pub struct Items<'a> {
+  command_tx: Option<UnboundedSender<Action>>,
+  config: Config,
+  state: TableState,
+  rows: Vec<Row<'a>>,
+}
+
+impl Items<'_> {
     pub fn new() -> Self {
         Self {
             command_tx: None,
             config: Config::default(),
             state: TableState::default(),
+            rows: Vec::default()
         }
     }
 
 }
 
-impl Component for Items {
+impl Component for Items<'_> {
+    fn init(&mut self, size: Rect) -> Result<()> {
+        let mut rows = Vec::new();
+        for i in 0..100 {
+            rows.push(Row::new(vec![
+                format!("Item {}", i),
+                format!("Item {}", i),
+                format!("Item {}", i),
+            ]));
+        }
+        self.rows = rows;
+        self.state.select(Some(0));
+        Ok(())
+    }
+
     fn register_action_handler(&mut self, tx: UnboundedSender<Action>) -> Result<()> {
         self.command_tx = Some(tx);
         Ok(())
@@ -36,16 +52,25 @@ impl Component for Items {
         Ok(())
     }
 
+    fn move_down(&mut self) -> Result<Option<Action>> {
+        self.state.select(Some(self.state.selected().unwrap_or(1) + 1));
+        log::info!("Selected: {}", self.state.selected().unwrap_or(1));
+        Ok(None)
+    }
+
+    fn move_up(&mut self) -> Result<Option<Action>> {
+        self.state.select(Some(self.state.selected().unwrap_or(1) - 1));
+        log::info!("Selected: {}", self.state.selected().unwrap_or(1));
+        Ok(None)
+    }
+
     fn draw(&mut self, f: &mut Frame<'_>, area: Rect) -> Result<()> {
-        let table = Table::new(vec![
-                Row::new(vec!["Item 1", "Item 2", "Item 3"]),
-                Row::new(vec!["Item 4", "Item 5", "Item 6"]),
-                Row::new(vec!["Item 7", "Item 8", "Item 9"]),
-            ], [
+        let table = Table::new(self.rows.clone(), [
                 Constraint::Length(area.width - 30),
                 Constraint::Length(15),
                 Constraint::Length(15)])
-            .header(Row::new(vec!["Header 1", "Header 2", "Header 3"]));
+            .header(Row::new(vec!["Header 1", "Header 2", "Header 3"]).bold())
+            .highlight_style(Style::new().light_yellow());
 
         f.render_stateful_widget(table, area, &mut self.state);
         Ok(())

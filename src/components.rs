@@ -122,4 +122,23 @@ pub trait Component {
   ///
   /// * `Result<()>` - An Ok result or an error.
   fn draw(&mut self, f: &mut Frame<'_>, area: Rect) -> Result<()>;
+  /// Navigate upwards in the component.
+  ///
+  /// # Returns
+  ///
+  /// * `Result<()>` - An Ok result or an error.
+  #[allow(unused_variables)]
+  fn move_up(&mut self) -> Result<Option<Action>> {
+    Ok(None)
+  }
+  /// Navigate downwards in the component.
+  ///
+  /// # Returns
+  ///
+  /// * `Result<()>` - An Ok result or an error.
+  #[allow(unused_variables)]
+  fn move_down(&mut self) -> Result<Option<Action>> {
+    Ok(None)
+  }
+
 }

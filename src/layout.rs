@@ -58,4 +58,18 @@ impl Component for HomeLayout {
         }
         Ok(())
     }
+
+    fn move_down(&mut self) -> Result<Option<crate::action::Action>> {
+        for component in self.components.iter_mut() {
+            component.move_down()?;
+        }
+        Ok(None)
+    }
+
+    fn move_up(&mut self) -> Result<Option<crate::action::Action>> {
+        for component in self.components.iter_mut() {
+            component.move_up()?;
+        }
+        Ok(None)
+    }
 }
