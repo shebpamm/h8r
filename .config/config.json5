@@ -7,6 +7,8 @@
       "<Ctrl-z>": "Suspend", // Suspend the application
       "<j>": "MoveDown", // Move down
       "<k>": "MoveUp", // Move up
+      "<Up>": "MoveUp", // Move up
+      "<Down>": "MoveDown", // Move down
     },
   }
 }
