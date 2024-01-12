@@ -10,7 +10,8 @@ use crate::{
   config::Config,
   mode::Mode,
   tui,
-  layout::HomeLayout
+  layout::HomeLayout,
+  stats::{socket::Socket,data::HaproxyStat},
 };
 
 pub struct App {
@@ -22,6 +23,7 @@ pub struct App {
   pub should_suspend: bool,
   pub mode: Mode,
   pub last_tick_key_events: Vec<KeyEvent>,
+  pub haproxy_stats: Vec<HaproxyStat>,
 }
 
 impl App {
@@ -41,6 +43,7 @@ impl App {
       config,
       mode,
       last_tick_key_events: Vec::new(),
+      haproxy_stats: Vec::new(),
     })
   }
 
@@ -54,6 +57,13 @@ impl App {
       self.layout.register_action_handler(action_tx.clone())?;
       self.layout.register_config_handler(self.config.clone())?;
       self.layout.init(tui.size()?)?;
+
+    let mut socket = Socket::new(self.config.config._socket_path.clone()).await?;
+    let socket_tx = action_tx.clone();
+
+    tokio::spawn(async move {
+        socket.collect(socket_tx).await.unwrap();
+    });
 
     loop {
       if let Some(e) = tui.next().await {
@@ -91,12 +101,16 @@ impl App {
         if action != Action::Tick && action != Action::Render {
           log::debug!("{action:?}");
         }
-        match action {
+        match action.clone() {
           Action::MoveUp => {
             self.layout.move_up()?;
           },
           Action::MoveDown => {
             self.layout.move_down()?;
+          },
+          Action::UpdateStats(stats) => {
+            log::info!("Updating stats: {stats:?}");
+            self.haproxy_stats = stats;
           },
           Action::Tick => {
             self.last_tick_key_events.drain(..);

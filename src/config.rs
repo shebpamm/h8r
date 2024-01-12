@@ -21,6 +21,8 @@ pub struct AppConfig {
   pub _data_dir: PathBuf,
   #[serde(default)]
   pub _config_dir: PathBuf,
+  #[serde(default)]
+  pub _socket_path: String,
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -40,7 +42,8 @@ impl Config {
     let config_dir = crate::utils::get_config_dir();
     let mut builder = config::Config::builder()
       .set_default("_data_dir", data_dir.to_str().unwrap())?
-      .set_default("_config_dir", config_dir.to_str().unwrap())?;
+      .set_default("_config_dir", config_dir.to_str().unwrap())?
+      .set_default("_socket_path", "/run/user/1000/haproxy.sock")?;
 
     let config_files = [
       ("config.json5", config::FileFormat::Json5),

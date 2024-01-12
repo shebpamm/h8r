@@ -6,7 +6,9 @@ use serde::{
 };
 use strum::Display;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Display, Deserialize)]
+use crate::stats::data::HaproxyStat;
+
+#[derive(Debug, Clone, PartialEq, Serialize, Display, Deserialize)]
 pub enum Action {
   Tick,
   Render,
@@ -19,4 +21,5 @@ pub enum Action {
   Help,
   MoveUp,
   MoveDown,
+  UpdateStats(Vec<HaproxyStat>),
 }

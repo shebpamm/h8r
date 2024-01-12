@@ -11,6 +11,7 @@ pub mod mode;
 pub mod tui;
 pub mod utils;
 pub mod layout;
+pub mod stats;
 
 use clap::Parser;
 use cli::Cli;
