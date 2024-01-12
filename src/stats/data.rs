@@ -1,5 +1,6 @@
 use csv::StringRecord;
 use serde::{Deserialize, Serialize};
+use strum::Display;
 
 #[derive(Debug, Deserialize, Serialize, PartialEq, PartialOrd, Clone, Default)]
 pub struct HaproxyStat {
@@ -117,7 +118,7 @@ impl HaproxyStat {
         fields.push_field("");
       }
 
-    let stat: HaproxyStat = fields.deserialize(None)?;
+      let stat: HaproxyStat = fields.deserialize(None)?;
 
       records.push(stat);
     }
@@ -126,8 +127,9 @@ impl HaproxyStat {
   }
 }
 
+#[derive(Debug, PartialEq, Clone, Display)]
 pub enum ResourceType {
-    Frontend,
-    Backend,
-    Server,
+  Frontend,
+  Backend,
+  Server,
 }

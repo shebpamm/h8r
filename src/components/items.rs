@@ -14,6 +14,7 @@ pub struct Items<'a> {
   config: Config,
   state: TableState,
   data: Vec<HaproxyStat>,
+  headers: Vec<String>,
   rows: Vec<Row<'a>>,
   resource: ResourceType,
 }
@@ -24,14 +25,17 @@ impl Items<'_> {
       command_tx: None,
       config: Config::default(),
       state: TableState::default(),
+      headers: Vec::default(),
       data: Vec::default(),
       rows: Vec::default(),
-      resource: ResourceType::Server,
+      resource: ResourceType::Backend,
     }
   }
 
   fn update_rows(&mut self, data: Vec<HaproxyStat>) {
     let mut rows = Vec::new();
+
+    // Rows
     let data: Vec<HaproxyStat> = data
       .into_iter()
       .filter(match self.resource {
@@ -43,12 +47,33 @@ impl Items<'_> {
       })
       .collect();
 
+    // Headers
+    self.headers = match self.resource {
+      ResourceType::Backend => vec!["".to_string(), "Name".to_string(), "Status".to_string()],
+      ResourceType::Frontend => vec!["".to_string(), "Name".to_string(), "Status".to_string()],
+      ResourceType::Server => vec!["".to_string(), "Status".to_string(), "".to_string()],
+    };
+
+
+    // Columns
     for row in data {
-      rows.push(Row::new(vec![
-        row.pxname.unwrap_or("".to_string()),
-        row.svname.unwrap_or("".to_string()),
-        row.status.unwrap_or("".to_string()),
-      ]));
+      match self.resource {
+        ResourceType::Backend => rows.push(Row::new(vec![
+          row.pxname.unwrap_or("".to_string()),
+          row.svname.unwrap_or("".to_string()),
+          row.status.unwrap_or("".to_string()),
+        ])),
+        ResourceType::Frontend => rows.push(Row::new(vec![
+          row.pxname.unwrap_or("".to_string()),
+          row.svname.unwrap_or("".to_string()),
+          row.status.unwrap_or("".to_string()),
+        ])),
+        ResourceType::Server => rows.push(Row::new(vec![
+          row.svname.unwrap_or("".to_string()),
+          row.status.unwrap_or("".to_string()),
+          "".to_string(),
+        ])),
+      }
     }
     self.rows = rows;
   }
@@ -83,18 +108,6 @@ impl Component for Items<'_> {
     Ok(None)
   }
 
-  fn draw(&mut self, f: &mut Frame<'_>, area: Rect) -> Result<()> {
-    let table = Table::new(
-      self.rows.clone(),
-      [Constraint::Length(area.width - 30), Constraint::Length(15), Constraint::Length(15)],
-    )
-    .header(Row::new(vec!["Name", "Todo", "Status"]).bold())
-    .highlight_style(Style::new().light_yellow());
-
-    f.render_stateful_widget(table, area, &mut self.state);
-    Ok(())
-  }
-
   fn update(&mut self, action: Action) -> Result<Option<Action>> {
     match action {
       Action::UpdateStats(stats) => {
@@ -104,5 +117,23 @@ impl Component for Items<'_> {
       },
       _ => Ok(None),
     }
+  }
+
+  fn draw(&mut self, f: &mut Frame<'_>, area: Rect) -> Result<()> {
+    let table = Table::new(
+      self.rows.clone(),
+      [Constraint::Length(area.width - 30), Constraint::Length(15), Constraint::Length(15)],
+    )
+    .header(Row::new(self.headers.clone()).bold())
+    .highlight_style(Style::new().light_yellow());
+
+    let border = Block::new()
+      .title(self.resource.to_string())
+      .borders(Borders::ALL)
+      .border_style(Style::default().fg(Color::White));
+
+    f.render_widget(border, area);
+    f.render_stateful_widget(table, area, &mut self.state);
+    Ok(())
   }
 }
