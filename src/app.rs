@@ -109,7 +109,7 @@ impl App {
             self.layout.move_down()?;
           },
           Action::UpdateStats(stats) => {
-            log::info!("Updating stats: {stats:?}");
+            log::debug!("Updating stats: {stats:?}");
             self.haproxy_stats = stats;
           },
           Action::Tick => {

@@ -5,13 +5,14 @@ use tokio::sync::mpsc::UnboundedSender;
 use super::{Component, Frame};
 use crate::{
     action::Action,
-    config::{Config, KeyBindings},
+    config::{Config, KeyBindings}, stats::data::HaproxyStat,
 };
 
 pub struct Items<'a> {
   command_tx: Option<UnboundedSender<Action>>,
   config: Config,
   state: TableState,
+  data: Vec<HaproxyStat>,
   rows: Vec<Row<'a>>,
 }
 
@@ -21,23 +22,27 @@ impl Items<'_> {
             command_tx: None,
             config: Config::default(),
             state: TableState::default(),
+            data: Vec::default(),
             rows: Vec::default()
         }
     }
 
+    fn update_rows(&mut self, data: Vec<HaproxyStat>) {
+        let mut rows = Vec::new();
+        for row in data {
+            rows.push(Row::new(vec![
+                row.pxname.unwrap_or("".to_string()),
+                row.svname.unwrap_or("".to_string()),
+                row.status.unwrap_or("".to_string()),
+            ]));
+        }
+        self.rows = rows;
+    }
 }
 
 impl Component for Items<'_> {
     fn init(&mut self, size: Rect) -> Result<()> {
-        let mut rows = Vec::new();
-        for i in 0..100 {
-            rows.push(Row::new(vec![
-                format!("Item {}", i),
-                format!("Item {}", i),
-                format!("Item {}", i),
-            ]));
-        }
-        self.rows = rows;
+        self.rows = Vec::new();
         self.state.select(Some(0));
         Ok(())
     }
@@ -74,5 +79,16 @@ impl Component for Items<'_> {
 
         f.render_stateful_widget(table, area, &mut self.state);
         Ok(())
+    }
+
+    fn update(&mut self, action: Action) -> Result<Option<Action>> {
+        match action {
+            Action::UpdateStats(stats) => {
+                self.data = stats.clone();
+                self.update_rows(stats);
+                Ok(None)
+            },
+            _ => Ok(None)
+        }
     }
 }

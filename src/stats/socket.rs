@@ -76,6 +76,7 @@ impl Socket {
             // remove prompt lines with >
             let resp = resp.split("\n").skip(1).filter(|line| !line.starts_with(">")).collect::<Vec<&str>>().join("\n");
 
+
             let stats = HaproxyStat::parse_csv(&resp)?;
 
             action_tx.send(Action::UpdateStats(stats)).unwrap();
