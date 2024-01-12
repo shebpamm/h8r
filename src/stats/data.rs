@@ -125,3 +125,9 @@ impl HaproxyStat {
     Ok(records)
   }
 }
+
+pub enum ResourceType {
+    Frontend,
+    Backend,
+    Server,
+}
