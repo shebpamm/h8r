@@ -35,7 +35,6 @@ impl Socket {
               match self.stream.try_read(&mut buf) {
                 Ok(_) => {
                   log::debug!("Prompt mode enabled");
-                  log::info!("trash data: {}", String::from_utf8_lossy(&buf));
                   break;
                 },
                 Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
@@ -83,7 +82,6 @@ impl Socket {
         match self.stream.try_read(&mut buf) {
           Ok(buf_size) => {
             resp.push_str(&String::from_utf8_lossy(&buf));
-            log::info!("buf contents: {}", &String::from_utf8_lossy(&buf));
 
             if buf_size != 1024 {
               should_query = true;

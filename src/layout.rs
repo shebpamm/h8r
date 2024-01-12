@@ -1,10 +1,12 @@
 use color_eyre::eyre::Result;
+use crossterm::event::KeyEvent;
 use ratatui::layout::{Constraint, Direction, Layout, Rect, Size};
 
 use crate::{
   action::Action,
-  components::{fps::FpsCounter, items::Items, Component},
-  tui::{Frame, Event}, config::Config,
+  components::{items::Items, menu::Menu, Component},
+  config::Config,
+  tui::{Event, Frame},
 };
 
 pub struct HomeLayout {
@@ -16,7 +18,7 @@ pub struct HomeLayout {
 impl HomeLayout {
   pub fn new() -> Self {
     let mut components: Vec<Box<dyn Component>> = Vec::new();
-    components.push(Box::new(FpsCounter::new()));
+    components.push(Box::new(Menu::new()));
     components.push(Box::new(Items::new()));
     Self {
       components,
@@ -91,6 +93,23 @@ impl Component for HomeLayout {
 
     for component in self.components.iter_mut() {
       if let Some(action) = component.update(action.clone())? {
+        actions.push(action);
+      }
+    }
+
+    if let Some(action_handler) = &self.action_handler {
+      for action in actions {
+        action_handler.send(action)?;
+      }
+    }
+
+    Ok(None)
+  }
+
+  fn handle_key_events(&mut self, key: KeyEvent) -> Result<Option<Action>> {
+    let mut actions: Vec<Action> = Vec::new();
+    for component in self.components.iter_mut() {
+      if let Some(action) = component.handle_key_events(key.clone())? {
         actions.push(action);
       }
     }

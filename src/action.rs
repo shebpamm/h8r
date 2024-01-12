@@ -6,7 +6,7 @@ use serde::{
 };
 use strum::Display;
 
-use crate::stats::data::HaproxyStat;
+use crate::stats::data::{HaproxyStat, ResourceType};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Display, Deserialize)]
 pub enum Action {
@@ -22,4 +22,5 @@ pub enum Action {
   MoveUp,
   MoveDown,
   UpdateStats(Vec<HaproxyStat>),
+  SelectResource(ResourceType),
 }

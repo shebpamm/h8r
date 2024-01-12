@@ -115,6 +115,12 @@ impl Component for Items<'_> {
         self.update_rows(stats);
         Ok(None)
       },
+      Action::SelectResource(resource) => {
+        self.resource = resource;
+        self.state.select(Some(0));
+        self.update_rows(self.data.clone());
+        Ok(None)
+      },
       _ => Ok(None),
     }
   }

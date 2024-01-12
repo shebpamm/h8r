@@ -127,7 +127,7 @@ impl HaproxyStat {
   }
 }
 
-#[derive(Debug, PartialEq, Clone, Display)]
+#[derive(Debug, PartialEq, Clone, Copy, Display, Serialize, Deserialize)]
 pub enum ResourceType {
   Frontend,
   Backend,
