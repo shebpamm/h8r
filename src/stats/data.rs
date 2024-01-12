@@ -108,6 +108,7 @@ pub struct HaproxyStat {
 impl HaproxyStat {
   pub fn parse_csv(csv: &str) -> Result<Vec<HaproxyStat>, csv::Error> {
     let mut records = Vec::new();
+    log::debug!("csv: {}", csv);
     let mut rdr =
       csv::ReaderBuilder::new().has_headers(false).flexible(true).comment(Some(b'#')).from_reader(csv.as_bytes());
     for result in rdr.records() {

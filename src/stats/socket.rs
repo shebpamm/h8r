@@ -28,7 +28,26 @@ impl Socket {
 
       if ready.is_writable() {
         match self.stream.try_write(b"prompt\n") {
-          Ok(_) => break,
+          Ok(_) => {
+            log::debug!("Prompt mode enabled");
+            loop {
+              let mut buf = [0; 1024];
+              match self.stream.try_read(&mut buf) {
+                Ok(_) => {
+                  log::debug!("Prompt mode enabled");
+                  log::info!("trash data: {}", String::from_utf8_lossy(&buf));
+                  break;
+                },
+                Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                  continue;
+                },
+                Err(e) => {
+                  println!("Error: {}", e);
+                },
+              }
+            }
+            break;
+          },
           Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
             continue;
           },
@@ -40,6 +59,7 @@ impl Socket {
     }
 
     let mut should_query = true;
+    let mut resp = String::new();
     loop {
       let ready = self.stream.ready(Interest::READABLE | Interest::WRITABLE).await?;
 
@@ -59,27 +79,29 @@ impl Socket {
       }
 
       if ready.is_readable() {
-        let mut resp = String::new();
         let mut buf = [0; 1024];
         match self.stream.try_read(&mut buf) {
           Ok(buf_size) => {
             resp.push_str(&String::from_utf8_lossy(&buf));
+            log::info!("buf contents: {}", &String::from_utf8_lossy(&buf));
 
             if buf_size != 1024 {
-              log::debug!("Received: {}", resp);
               should_query = true;
+              let res = resp
+                .clone()
+                .split("\n")
+                .filter(|line| !line.starts_with(">"))
+                .collect::<Vec<&str>>()
+                .join("\n");
+
+
+              let stats = HaproxyStat::parse_csv(&res)?;
+              action_tx.send(Action::UpdateStats(stats)).unwrap();
+              resp.clear();
+
               tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
               continue;
             }
-
-            // remove initial comment line from response
-            // remove prompt lines with >
-            let resp = resp.split("\n").skip(1).filter(|line| !line.starts_with(">")).collect::<Vec<&str>>().join("\n");
-
-
-            let stats = HaproxyStat::parse_csv(&resp)?;
-
-            action_tx.send(Action::UpdateStats(stats)).unwrap();
           },
           Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
             continue;
