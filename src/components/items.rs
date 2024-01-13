@@ -43,7 +43,7 @@ impl Items<'_> {
         self.headers = vec!["".to_string(), "State".to_string(), "Requests".to_string()];
         for frontend in instant.data.frontends {
           rows.push(Row::new(vec![
-            frontend.name.to_string(),
+            frontend.name,
             frontend.status.to_string(),
             frontend.requests.to_string(),
           ]));
@@ -52,23 +52,23 @@ impl Items<'_> {
       (ResourceType::Backend, Some(instant)) => {
         self.headers = vec!["".to_string(), "State".to_string(), "Requests".to_string()];
         for backend in instant.data.backends {
-          rows.push(Row::new(vec![backend.name.to_string(), backend.status.to_string(), backend.requests.to_string()]));
+          rows.push(Row::new(vec![backend.name, backend.status.to_string(), backend.requests.to_string()]));
         }
       },
       (ResourceType::Server, Some(instant)) => {
-        self.headers = vec!["".to_string(), "State".to_string(), "Requests".to_string()];
+        self.headers = vec!["".to_string(), "Backend".to_string(), "State".to_string(), "Requests".to_string()];
         for server in instant.data.servers {
-          rows.push(Row::new(vec![server.name.to_string(), server.status.to_string(), server.requests.to_string()]));
+          rows.push(Row::new(vec![server.name, server.backend_name, server.status.to_string(), server.requests.to_string()]));
         }
       },
       (ResourceType::Combined, Some(instant)) => {
         self.headers = vec!["".to_string(), "Type".to_string(), "State".to_string(), "Requests".to_string()];
         for backend in instant.data.backends {
           rows.push(Row::new(vec![
-            format!("{}", backend.name.to_string()),
-            "Backend".to_string(),
-            backend.status.to_string(),
-            backend.requests.to_string(),
+            format!("{}", backend.name.to_string()).bold(),
+            "Backend".to_string().bold(),
+            backend.status.to_string().bold(),
+            backend.requests.to_string().bold(),
           ]));
           for server in backend.servers {
             rows.push(Row::new(vec![
@@ -157,9 +157,20 @@ impl Component for Items<'_> {
   }
 
   fn draw(&mut self, f: &mut Frame<'_>, area: Rect) -> Result<()> {
+    let mut lengths = Vec::new();
+    for header in &self.headers {
+      lengths.push(Constraint::Length(15));
+    }
+    
+    if lengths.is_empty() {
+      lengths.push(Constraint::Length(15));
+    }
+
+    lengths[0] = Constraint::Length(area.width - (lengths.len() as u16 - 1) * 15);
+
     let table = Table::new(
       self.rows.clone(),
-      [Constraint::Length(area.width - 30), Constraint::Length(15), Constraint::Length(15)],
+      lengths
     )
     .header(Row::new(self.headers.clone()).bold())
     .highlight_style(Style::new().light_yellow());
