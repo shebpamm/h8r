@@ -33,7 +33,7 @@ impl Component for Menu {
   }
 
   fn draw(&mut self, f: &mut Frame<'_>, rect: Rect) -> Result<()> {
-    let resources = vec![ResourceType::Backend, ResourceType::Frontend, ResourceType::Server, ResourceType::Combined];
+    let resources = vec![ResourceType::Combined, ResourceType::Backend, ResourceType::Frontend, ResourceType::Server];
 
     let sides = Layout::default()
       .direction(Direction::Horizontal)
@@ -69,19 +69,19 @@ impl Component for Menu {
   fn handle_key_events(&mut self, key: KeyEvent) -> Result<Option<Action>> {
     match key.code {
       KeyCode::Char('0') => {
-        self.resource = ResourceType::Backend;
+        self.resource = ResourceType::Combined;
         Ok(Some(Action::SelectResource(self.resource)))
       },
       KeyCode::Char('1') => {
-        self.resource = ResourceType::Frontend;
+        self.resource = ResourceType::Backend;
         Ok(Some(Action::SelectResource(self.resource)))
       },
       KeyCode::Char('2') => {
-        self.resource = ResourceType::Server;
+        self.resource = ResourceType::Frontend;
         Ok(Some(Action::SelectResource(self.resource)))
       },
       KeyCode::Char('3') => {
-        self.resource = ResourceType::Combined;
+        self.resource = ResourceType::Server;
         Ok(Some(Action::SelectResource(self.resource)))
       },
       _ => Ok(None),
