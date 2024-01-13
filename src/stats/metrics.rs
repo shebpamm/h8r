@@ -1,8 +1,9 @@
+use chrono::{DateTime, Local};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
-use std::time::Instant;
 
 use color_eyre::eyre::Result;
+use strum::Display;
 use thiserror::Error;
 
 use super::data::{HaproxyStat, ResourceType};
@@ -13,7 +14,7 @@ pub enum MetricError {
   InvalidSVNameMeaning,
 }
 
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Display, Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum HaproxyFrontendStatus {
   Open,
@@ -39,7 +40,19 @@ impl FromStr for SVNameMeaning {
   }
 }
 
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
+trait FromHaproxyStat {
+  fn new(row: HaproxyStat) -> Result<Self>
+  where
+    Self: Sized + serde::de::DeserializeOwned,
+  {
+    let v = serde_json::to_value(row)?;
+    let frontend: Self = serde_json::from_value(v)?;
+
+    Ok(frontend)
+  }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct HaproxyFrontend {
   #[serde(rename = "pxname")]
   pub name: String,
@@ -52,59 +65,61 @@ pub struct HaproxyFrontend {
   #[serde(skip)]
   pub backends: Vec<HaproxyBackend>,
 }
-impl HaproxyFrontend {
-    fn new(row: HaproxyStat) -> Result<Self> {
-        let v = serde_json::to_value(row)?;
-        let frontend: HaproxyFrontend = serde_json::from_value(v)?;
+impl FromHaproxyStat for HaproxyFrontend {}
 
-        Ok(frontend)
-    }
-}
-
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum HaproxyBackendStatus {
   Up,
   Down,
 }
 
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct HaproxyBackend {
+  #[serde(rename = "pxname")]
   pub name: String,
   pub status: HaproxyBackendStatus,
-  pub requests: i64,
-  pub connections: i64,
+  #[serde(rename = "req_tot")]
+  pub requests: f64,
 
+  #[serde(skip)]
   pub servers: Vec<HaproxyServer>,
 }
 
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
+impl FromHaproxyStat for HaproxyBackend {}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum HaproxyServerStatus {
   Up,
   Down,
 }
 
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct HaproxyServer {
+  #[serde(rename = "svname")]
   pub name: String,
   pub status: HaproxyServerStatus,
-  pub requests: i64,
-  pub connections: i64,
+  #[serde(rename = "req_tot")]
+  pub requests: f64,
 }
 
-#[derive(Debug, PartialEq)]
+impl FromHaproxyStat for HaproxyServer {}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct InstantHaproxyMetricData {
   pub raw: Vec<HaproxyStat>,
   pub frontends: Vec<HaproxyFrontend>,
   pub backends: Vec<HaproxyBackend>,
   pub servers: Vec<HaproxyServer>,
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct InstantHaproxyMetrics {
   pub data: InstantHaproxyMetricData,
-  pub time: Instant,
+  pub time: DateTime<Local>,
 }
 
-#[derive(Debug, PartialEq, Default)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Default)]
 pub struct HaproxyMetrics {
   pub instant: Option<InstantHaproxyMetrics>,
   pub history: Vec<InstantHaproxyMetrics>,
@@ -120,17 +135,26 @@ impl HaproxyMetrics {
     let mut backends: Vec<HaproxyBackend> = Vec::new();
     let mut servers: Vec<HaproxyServer> = Vec::new();
 
-    for row in data {
+    for row in &data {
       let svname = row.svname.clone().unwrap_or("".to_string()).parse::<SVNameMeaning>()?;
 
       match svname {
         SVNameMeaning::Frontend => {
-          frontends.push(HaproxyFrontend::new(row)?);
+          frontends.push(HaproxyFrontend::new(row.to_owned())?);
         },
-        SVNameMeaning::Backend => {},
-        SVNameMeaning::Server => {},
+        SVNameMeaning::Backend => {
+          backends.push(HaproxyBackend::new(row.to_owned())?);
+        },
+        SVNameMeaning::Server => {
+          servers.push(HaproxyServer::new(row.to_owned())?);
+        },
       }
     }
+
+    self.instant = Some(InstantHaproxyMetrics {
+      data: InstantHaproxyMetricData { raw: data, frontends, backends, servers },
+      time: Local::now(),
+    });
 
     Ok(())
   }

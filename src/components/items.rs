@@ -6,14 +6,17 @@ use super::{Component, Frame};
 use crate::{
   action::Action,
   config::{Config, KeyBindings},
-  stats::data::{HaproxyStat, ResourceType},
+  stats::{
+    data::{HaproxyStat, ResourceType},
+    metrics::HaproxyMetrics,
+  },
 };
 
 pub struct Items<'a> {
   command_tx: Option<UnboundedSender<Action>>,
   config: Config,
   state: TableState,
-  data: Vec<HaproxyStat>,
+  metrics: HaproxyMetrics,
   headers: Vec<String>,
   rows: Vec<Row<'a>>,
   resource: ResourceType,
@@ -26,60 +29,33 @@ impl Items<'_> {
       config: Config::default(),
       state: TableState::default(),
       headers: Vec::default(),
-      data: Vec::default(),
+      metrics: HaproxyMetrics::default(),
       rows: Vec::default(),
       resource: ResourceType::Combined,
     }
   }
 
-  fn update_rows(&mut self, data: Vec<HaproxyStat>) {
+  fn update_rows(&mut self, data: HaproxyMetrics) {
     let mut rows = Vec::new();
 
-    // Rows
-    let data: Vec<HaproxyStat> = data
-      .into_iter()
-      .filter(match self.resource {
-        ResourceType::Backend => |row: &HaproxyStat| row.svname == Some("BACKEND".to_string()),
-        ResourceType::Frontend => |row: &HaproxyStat| row.svname == Some("FRONTEND".to_string()),
-        ResourceType::Server => {
-          |row: &HaproxyStat| row.svname != Some("BACKEND".to_string()) && row.svname != Some("FRONTEND".to_string())
-        },
-        ResourceType::Combined => |_: &HaproxyStat| true,
-      })
-      .collect();
-
-    // Headers
-    self.headers = match self.resource {
-      ResourceType::Backend => vec!["".to_string(), "Name".to_string(), "Status".to_string()],
-      ResourceType::Frontend => vec!["".to_string(), "Name".to_string(), "Status".to_string()],
-      ResourceType::Server => vec!["".to_string(), "Status".to_string(), "".to_string()],
-      ResourceType::Combined => vec!["".to_string(), "Name".to_string(), "Status".to_string()],
-    };
-
-    // Columns
-    for row in data.clone() {
-      match self.resource {
-        ResourceType::Backend => rows.push(Row::new(vec![
-          row.pxname.unwrap_or("".to_string()),
-          row.svname.unwrap_or("".to_string()),
-          row.status.unwrap_or("".to_string()),
-        ])),
-        ResourceType::Frontend => rows.push(Row::new(vec![
-          row.pxname.unwrap_or("".to_string()),
-          row.svname.unwrap_or("".to_string()),
-          row.status.unwrap_or("".to_string()),
-        ])),
-        ResourceType::Server => rows.push(Row::new(vec![
-          row.svname.unwrap_or("".to_string()),
-          row.status.unwrap_or("".to_string()),
-          "".to_string(),
-        ])),
-        _ => {},
-      }
+    match self.resource {
+      ResourceType::Frontend => {
+        self.headers = vec!["".to_string(), "State".to_string(), "Requests".to_string()];
+        if let Some(instant) = data.instant {
+          for frontend in instant.data.frontends {
+            rows.push(Row::new(vec![
+              frontend.name.to_string(),
+              frontend.status.to_string(),
+              frontend.requests.to_string()
+            ]));
+          }
+        }
+      },
+      ResourceType::Backend => {},
+      ResourceType::Server => {},
+      ResourceType::Combined => {},
     }
 
-    if ResourceType::Combined == self.resource {
-    }
     self.rows = rows;
   }
 }
@@ -127,15 +103,15 @@ impl Component for Items<'_> {
 
   fn update(&mut self, action: Action) -> Result<Option<Action>> {
     match action {
-      Action::UpdateStats(stats) => {
-        self.data = stats.clone();
-        self.update_rows(stats);
+      Action::MetricUpdate(metrics) => {
+        self.metrics = metrics.clone();
+        self.update_rows(metrics);
         Ok(None)
       },
       Action::SelectResource(resource) => {
         self.resource = resource;
         self.state.select(Some(0));
-        self.update_rows(self.data.clone());
+        self.update_rows(self.metrics.clone());
         Ok(None)
       },
       _ => Ok(None),

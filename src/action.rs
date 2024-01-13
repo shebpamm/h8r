@@ -1,3 +1,5 @@
+use crate::stats::metrics::HaproxyMetrics;
+use std::sync::Arc;
 use std::{fmt, string::ToString};
 
 use serde::{
@@ -5,6 +7,7 @@ use serde::{
   Deserialize, Serialize,
 };
 use strum::Display;
+use tokio::sync::RwLock;
 
 use crate::stats::data::{HaproxyStat, ResourceType};
 
@@ -22,5 +25,6 @@ pub enum Action {
   MoveUp,
   MoveDown,
   UpdateStats(Vec<HaproxyStat>),
+  MetricUpdate(HaproxyMetrics),
   SelectResource(ResourceType),
 }

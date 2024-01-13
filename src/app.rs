@@ -26,7 +26,6 @@ pub struct App {
   pub should_suspend: bool,
   pub mode: Mode,
   pub last_tick_key_events: Vec<KeyEvent>,
-  pub haproxy_stats: Vec<HaproxyStat>,
   pub haproxy_metrics: HaproxyMetrics,
 }
 
@@ -47,7 +46,6 @@ impl App {
       config,
       mode,
       last_tick_key_events: Vec::new(),
-      haproxy_stats: Vec::new(),
       haproxy_metrics: HaproxyMetrics::new(),
     })
   }
@@ -114,8 +112,8 @@ impl App {
             self.layout.move_down()?;
           },
           Action::UpdateStats(stats) => {
-            log::debug!("Updating stats: {stats:?}");
             self.haproxy_metrics.update(stats)?;
+            action_tx.send(Action::MetricUpdate(self.haproxy_metrics.clone()))?;
           },
           Action::Tick => {
             self.last_tick_key_events.drain(..);
