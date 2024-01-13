@@ -25,7 +25,7 @@ impl HomeLayout {
       action_handler: None,
       layout: Layout::default()
         .direction(Direction::Vertical)
-        .constraints(vec![Constraint::Length(5), Constraint::Min(0)]),
+        .constraints(vec![Constraint::Length(6), Constraint::Min(0)]),
     }
   }
 }

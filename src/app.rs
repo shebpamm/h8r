@@ -1,17 +1,20 @@
 use color_eyre::eyre::Result;
 use crossterm::event::KeyEvent;
-use ratatui::{prelude::Rect, layout::{Layout, Direction, Constraint}};
+use ratatui::{
+  layout::{Constraint, Direction, Layout},
+  prelude::Rect,
+};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
 use crate::{
   action::Action,
-  components::{items::Items, fps::FpsCounter, Component},
+  components::{fps::FpsCounter, items::Items, Component},
   config::Config,
-  mode::Mode,
-  tui,
   layout::HomeLayout,
-  stats::{socket::Socket,data::HaproxyStat},
+  mode::Mode,
+  stats::{data::HaproxyStat, metrics::HaproxyMetrics, socket::Socket},
+  tui,
 };
 
 pub struct App {
@@ -24,6 +27,7 @@ pub struct App {
   pub mode: Mode,
   pub last_tick_key_events: Vec<KeyEvent>,
   pub haproxy_stats: Vec<HaproxyStat>,
+  pub haproxy_metrics: HaproxyMetrics,
 }
 
 impl App {
@@ -31,7 +35,7 @@ impl App {
     let config = Config::new()?;
     let mode = Mode::Home;
     let layout = match mode {
-        Mode::Home => Box::new(HomeLayout::new()),
+      Mode::Home => Box::new(HomeLayout::new()),
     };
 
     Ok(Self {
@@ -44,6 +48,7 @@ impl App {
       mode,
       last_tick_key_events: Vec::new(),
       haproxy_stats: Vec::new(),
+      haproxy_metrics: HaproxyMetrics::new(),
     })
   }
 
@@ -54,15 +59,15 @@ impl App {
     // tui.mouse(true);
     tui.enter()?;
 
-      self.layout.register_action_handler(action_tx.clone())?;
-      self.layout.register_config_handler(self.config.clone())?;
-      self.layout.init(tui.size()?)?;
+    self.layout.register_action_handler(action_tx.clone())?;
+    self.layout.register_config_handler(self.config.clone())?;
+    self.layout.init(tui.size()?)?;
 
     let mut socket = Socket::new(self.config.config._socket_path.clone()).await?;
     let socket_tx = action_tx.clone();
 
     tokio::spawn(async move {
-        socket.collect(socket_tx).await.unwrap();
+      socket.collect(socket_tx).await.unwrap();
     });
 
     loop {
@@ -92,8 +97,8 @@ impl App {
           },
           _ => {},
         }
-          if let Some(action) = self.layout.handle_events(Some(e.clone()))? {
-            action_tx.send(action)?;
+        if let Some(action) = self.layout.handle_events(Some(e.clone()))? {
+          action_tx.send(action)?;
         }
       }
 
@@ -110,7 +115,7 @@ impl App {
           },
           Action::UpdateStats(stats) => {
             log::debug!("Updating stats: {stats:?}");
-            self.haproxy_stats = stats;
+            self.haproxy_metrics.update(stats)?;
           },
           Action::Tick => {
             self.last_tick_key_events.drain(..);
@@ -121,25 +126,25 @@ impl App {
           Action::Resize(w, h) => {
             tui.resize(Rect::new(0, 0, w, h))?;
             tui.draw(|f| {
-                let r = self.layout.draw(f, f.size());
-                if let Err(e) = r {
-                  action_tx.send(Action::Error(format!("Failed to draw: {:?}", e))).unwrap();
-                }
+              let r = self.layout.draw(f, f.size());
+              if let Err(e) = r {
+                action_tx.send(Action::Error(format!("Failed to draw: {:?}", e))).unwrap();
+              }
             })?;
           },
           Action::Render => {
             tui.draw(|f| {
-                let r = self.layout.draw(f, f.size());
-                if let Err(e) = r {
-                  action_tx.send(Action::Error(format!("Failed to draw: {:?}", e))).unwrap();
-                }
+              let r = self.layout.draw(f, f.size());
+              if let Err(e) = r {
+                action_tx.send(Action::Error(format!("Failed to draw: {:?}", e))).unwrap();
+              }
             })?;
           },
           _ => {},
         }
-          if let Some(action) = self.layout.update(action.clone())? {
-            action_tx.send(action)?
-          };
+        if let Some(action) = self.layout.update(action.clone())? {
+          action_tx.send(action)?
+        };
       }
       if self.should_suspend {
         tui.suspend()?;

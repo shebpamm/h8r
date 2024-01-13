@@ -23,7 +23,7 @@ impl Default for Menu {
 
 impl Menu {
   pub fn new() -> Self {
-    Self { resource: ResourceType::Backend }
+    Self { resource: ResourceType::Combined }
   }
 }
 
@@ -33,17 +33,20 @@ impl Component for Menu {
   }
 
   fn draw(&mut self, f: &mut Frame<'_>, rect: Rect) -> Result<()> {
+    let resources = vec![ResourceType::Backend, ResourceType::Frontend, ResourceType::Server, ResourceType::Combined];
+
     let sides = Layout::default()
       .direction(Direction::Horizontal)
       .constraints(vec![Constraint::Length(15), Constraint::Min(0)])
       .split(rect);
 
+    let lengths = vec![Constraint::Length(1); resources.len()+1];
+
     let left = Layout::default()
       .direction(Direction::Vertical)
-      .constraints(vec![Constraint::Length(1), Constraint::Length(1), Constraint::Length(1), Constraint::Length(1)])
+      .constraints(lengths)
       .split(sides[0]);
 
-    let resources = vec![ResourceType::Backend, ResourceType::Frontend, ResourceType::Server];
 
     let resource_border =
       Block::new().title("Resource").borders(Borders::ALL).border_style(Style::default().fg(Color::White));
@@ -75,6 +78,10 @@ impl Component for Menu {
       },
       KeyCode::Char('2') => {
         self.resource = ResourceType::Server;
+        Ok(Some(Action::SelectResource(self.resource)))
+      },
+      KeyCode::Char('3') => {
+        self.resource = ResourceType::Combined;
         Ok(Some(Action::SelectResource(self.resource)))
       },
       _ => Ok(None),

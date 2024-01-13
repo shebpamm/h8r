@@ -132,4 +132,5 @@ pub enum ResourceType {
   Frontend,
   Backend,
   Server,
+  Combined,
 }

@@ -28,7 +28,7 @@ impl Items<'_> {
       headers: Vec::default(),
       data: Vec::default(),
       rows: Vec::default(),
-      resource: ResourceType::Backend,
+      resource: ResourceType::Combined,
     }
   }
 
@@ -44,6 +44,7 @@ impl Items<'_> {
         ResourceType::Server => {
           |row: &HaproxyStat| row.svname != Some("BACKEND".to_string()) && row.svname != Some("FRONTEND".to_string())
         },
+        ResourceType::Combined => |_: &HaproxyStat| true,
       })
       .collect();
 
@@ -52,11 +53,11 @@ impl Items<'_> {
       ResourceType::Backend => vec!["".to_string(), "Name".to_string(), "Status".to_string()],
       ResourceType::Frontend => vec!["".to_string(), "Name".to_string(), "Status".to_string()],
       ResourceType::Server => vec!["".to_string(), "Status".to_string(), "".to_string()],
+      ResourceType::Combined => vec!["".to_string(), "Name".to_string(), "Status".to_string()],
     };
 
-
     // Columns
-    for row in data {
+    for row in data.clone() {
       match self.resource {
         ResourceType::Backend => rows.push(Row::new(vec![
           row.pxname.unwrap_or("".to_string()),
@@ -73,7 +74,11 @@ impl Items<'_> {
           row.status.unwrap_or("".to_string()),
           "".to_string(),
         ])),
+        _ => {},
       }
+    }
+
+    if ResourceType::Combined == self.resource {
     }
     self.rows = rows;
   }
@@ -97,14 +102,26 @@ impl Component for Items<'_> {
   }
 
   fn move_down(&mut self) -> Result<Option<Action>> {
-    self.state.select(Some(self.state.selected().unwrap_or(1) + 1));
-    log::info!("Selected: {}", self.state.selected().unwrap_or(1));
+    let selection = (self.state.selected().unwrap_or(1) + 1) % self.rows.len();
+
+    self.state.select(Some(selection));
+
+    log::info!("Selected: {}", selection);
+
     Ok(None)
   }
 
   fn move_up(&mut self) -> Result<Option<Action>> {
-    self.state.select(Some(self.state.selected().unwrap_or(1) - 1));
-    log::info!("Selected: {}", self.state.selected().unwrap_or(1));
+    let selection = if self.state.selected().unwrap_or(1) == 0 {
+      self.rows.len() - 1
+    } else {
+      self.state.selected().unwrap_or(1) - 1
+    };
+
+    self.state.select(Some(selection));
+
+    log::info!("Selected: {}", selection);
+
     Ok(None)
   }
 
