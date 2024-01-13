@@ -61,13 +61,10 @@ pub struct HaproxyFrontend {
   pub requests: f64,
   #[serde(rename = "scur")]
   pub sessions: i64,
-
-  #[serde(skip)]
-  pub backends: Vec<HaproxyBackend>,
 }
 impl FromHaproxyStat for HaproxyFrontend {}
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Display, Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum HaproxyBackendStatus {
   Up,
@@ -88,7 +85,7 @@ pub struct HaproxyBackend {
 
 impl FromHaproxyStat for HaproxyBackend {}
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Display, Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum HaproxyServerStatus {
   Up,
@@ -99,6 +96,8 @@ pub enum HaproxyServerStatus {
 pub struct HaproxyServer {
   #[serde(rename = "svname")]
   pub name: String,
+  #[serde(rename = "pxname")]
+  pub backend_name: String,
   pub status: HaproxyServerStatus,
   #[serde(rename = "req_tot")]
   pub requests: f64,
@@ -149,6 +148,14 @@ impl HaproxyMetrics {
           servers.push(HaproxyServer::new(row.to_owned())?);
         },
       }
+    }
+
+    for backend in &mut backends {
+      backend.servers = servers
+        .iter()
+        .filter(|server| server.backend_name == backend.name)
+        .cloned()
+        .collect::<Vec<HaproxyServer>>();
     }
 
     self.instant = Some(InstantHaproxyMetrics {

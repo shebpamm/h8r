@@ -38,22 +38,52 @@ impl Items<'_> {
   fn update_rows(&mut self, data: HaproxyMetrics) {
     let mut rows = Vec::new();
 
-    match self.resource {
-      ResourceType::Frontend => {
+    match (self.resource, data.instant) {
+      (ResourceType::Frontend, Some(instant)) => {
         self.headers = vec!["".to_string(), "State".to_string(), "Requests".to_string()];
-        if let Some(instant) = data.instant {
-          for frontend in instant.data.frontends {
+        for frontend in instant.data.frontends {
+          rows.push(Row::new(vec![
+            frontend.name.to_string(),
+            frontend.status.to_string(),
+            frontend.requests.to_string(),
+          ]));
+        }
+      },
+      (ResourceType::Backend, Some(instant)) => {
+        self.headers = vec!["".to_string(), "State".to_string(), "Requests".to_string()];
+        for backend in instant.data.backends {
+          rows.push(Row::new(vec![backend.name.to_string(), backend.status.to_string(), backend.requests.to_string()]));
+        }
+      },
+      (ResourceType::Server, Some(instant)) => {
+        self.headers = vec!["".to_string(), "State".to_string(), "Requests".to_string()];
+        for server in instant.data.servers {
+          rows.push(Row::new(vec![server.name.to_string(), server.status.to_string(), server.requests.to_string()]));
+        }
+      },
+      (ResourceType::Combined, Some(instant)) => {
+        self.headers = vec!["".to_string(), "Type".to_string(), "State".to_string(), "Requests".to_string()];
+        for backend in instant.data.backends {
+          rows.push(Row::new(vec![
+            format!("{}", backend.name.to_string()),
+            "Backend".to_string(),
+            backend.status.to_string(),
+            backend.requests.to_string(),
+          ]));
+          for server in backend.servers {
             rows.push(Row::new(vec![
-              frontend.name.to_string(),
-              frontend.status.to_string(),
-              frontend.requests.to_string()
+              format!("└ {}", server.name.to_string()),
+              "Server".to_string(),
+              server.status.to_string(),
+              server.requests.to_string(),
             ]));
           }
         }
       },
-      ResourceType::Backend => {},
-      ResourceType::Server => {},
-      ResourceType::Combined => {},
+      (_, None) => {
+        self.headers = vec!["".to_string()];
+        rows.push(Row::new(vec!["No data available".to_string().red()]));
+      },
     }
 
     self.rows = rows;
@@ -78,6 +108,10 @@ impl Component for Items<'_> {
   }
 
   fn move_down(&mut self) -> Result<Option<Action>> {
+    if self.rows.is_empty() {
+      return Ok(None);
+    }
+
     let selection = (self.state.selected().unwrap_or(1) + 1) % self.rows.len();
 
     self.state.select(Some(selection));
@@ -88,6 +122,10 @@ impl Component for Items<'_> {
   }
 
   fn move_up(&mut self) -> Result<Option<Action>> {
+    if self.rows.is_empty() {
+      return Ok(None);
+    }
+
     let selection = if self.state.selected().unwrap_or(1) == 0 {
       self.rows.len() - 1
     } else {
