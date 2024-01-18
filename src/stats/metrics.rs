@@ -1,5 +1,5 @@
 use chrono::{DateTime, Local};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Deserializer};
 use std::str::FromStr;
 
 use color_eyre::eyre::Result;
@@ -55,28 +55,23 @@ trait FromHaproxyStat {
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct HaproxyFrontend {
   #[serde(rename = "pxname")]
-  pub name: String,
+  pub name: Option<String>,
   pub status: HaproxyFrontendStatus,
   #[serde(rename = "req_tot")]
+  #[serde(deserialize_with = "deserialize_null_default")]
   pub requests: f64,
   #[serde(rename = "scur")]
   pub sessions: i64,
 }
 impl FromHaproxyStat for HaproxyFrontend {}
 
-#[derive(Debug, Display, Clone, Deserialize, Serialize, PartialEq)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum HaproxyBackendStatus {
-  Up,
-  Down,
-}
-
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct HaproxyBackend {
   #[serde(rename = "pxname")]
-  pub name: String,
-  pub status: HaproxyBackendStatus,
+  pub name: Option<String>,
+  pub status: String,
   #[serde(rename = "req_tot")]
+  #[serde(deserialize_with = "deserialize_null_default")]
   pub requests: f64,
 
   #[serde(skip)]
@@ -85,21 +80,15 @@ pub struct HaproxyBackend {
 
 impl FromHaproxyStat for HaproxyBackend {}
 
-#[derive(Debug, Display, Clone, Deserialize, Serialize, PartialEq)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum HaproxyServerStatus {
-  Up,
-  Down,
-}
-
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct HaproxyServer {
   #[serde(rename = "svname")]
-  pub name: String,
+  pub name: Option<String>,
   #[serde(rename = "pxname")]
-  pub backend_name: String,
-  pub status: HaproxyServerStatus,
+  pub backend_name: Option<String>,
+  pub status: String,
   #[serde(rename = "req_tot")]
+  #[serde(deserialize_with = "deserialize_null_default")]
   pub requests: f64,
 }
 
@@ -135,18 +124,19 @@ impl HaproxyMetrics {
     let mut servers: Vec<HaproxyServer> = Vec::new();
 
     for row in &data {
-      let svname = row.svname.clone().unwrap_or("".to_string()).parse::<SVNameMeaning>()?;
-
-      match svname {
-        SVNameMeaning::Frontend => {
+      match row.resource_type.unwrap_or(99) {
+        0 => {
           frontends.push(HaproxyFrontend::new(row.to_owned())?);
         },
-        SVNameMeaning::Backend => {
+        1 => {
           backends.push(HaproxyBackend::new(row.to_owned())?);
         },
-        SVNameMeaning::Server => {
+        2 => {
           servers.push(HaproxyServer::new(row.to_owned())?);
         },
+        _ => {
+            log::warn!("Unknown resource type: {:?}", row);
+                },
       }
     }
 
@@ -165,4 +155,13 @@ impl HaproxyMetrics {
 
     Ok(())
   }
+}
+
+fn deserialize_null_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+where
+    T: Default + Deserialize<'de>,
+    D: Deserializer<'de>,
+{
+    let opt = Option::deserialize(deserializer)?;
+    Ok(opt.unwrap_or_default())
 }

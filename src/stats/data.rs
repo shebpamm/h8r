@@ -1,4 +1,4 @@
-use csv::StringRecord;
+use csv::{StringRecord, Trim};
 use serde::{Deserialize, Serialize};
 use strum::Display;
 
@@ -36,7 +36,7 @@ pub struct HaproxyStat {
   pub throttle: Option<i64>,
   pub lbtot: Option<i64>,
   pub tracked: Option<i64>,
-  pub r#type: Option<String>,
+  pub resource_type: Option<i64>,
   pub rate: Option<f64>,
   pub rate_lim: Option<f64>,
   pub rate_max: Option<f64>,
@@ -111,7 +111,7 @@ impl HaproxyStat {
     let mut records = Vec::new();
     log::debug!("csv: {}", csv);
     let mut rdr =
-      csv::ReaderBuilder::new().has_headers(false).flexible(true).comment(Some(b'#')).from_reader(csv.as_bytes());
+      csv::ReaderBuilder::new().has_headers(false).trim(Trim::All).flexible(true).comment(Some(b'#')).from_reader(csv.as_bytes());
     for result in rdr.records() {
       let mut fields = result?;
       for _ in fields.len()..100 {
