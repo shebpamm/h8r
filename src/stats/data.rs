@@ -111,7 +111,7 @@ impl HaproxyStat {
     let mut records = Vec::new();
     log::debug!("csv: {}", csv);
     let mut rdr =
-      csv::ReaderBuilder::new().has_headers(false).trim(Trim::All).flexible(true).comment(Some(b'#')).from_reader(csv.as_bytes());
+      csv::ReaderBuilder::new().has_headers(true).trim(Trim::All).flexible(true).from_reader(csv.as_bytes());
     for result in rdr.records() {
       let mut fields = result?;
       for _ in fields.len()..100 {

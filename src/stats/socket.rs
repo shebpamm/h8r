@@ -1,6 +1,6 @@
 use std::io::{Read, Write};
 use tokio::{
-  io::{self, Interest},
+  io::{self, Interest, AsyncReadExt},
   net::{UnixListener, UnixStream},
   sync::mpsc::UnboundedSender,
 };
@@ -10,9 +10,11 @@ use color_eyre::eyre::Result;
 use crate::action::Action;
 
 use super::data::HaproxyStat;
+use std::fs::File;
+use chrono::Utc;
 
 pub struct Socket {
-    stream_path: String,
+  stream_path: String,
 }
 
 impl Socket {
@@ -21,9 +23,8 @@ impl Socket {
   }
 
   pub async fn refresh(&mut self, action_tx: UnboundedSender<Action>) -> Result<()> {
-    let stream = UnixStream::connect(&self.stream_path).await?;
+    let mut stream = UnixStream::connect(&self.stream_path).await?;
 
-    let mut resp = String::new();
     loop {
       let ready = stream.ready(Interest::READABLE | Interest::WRITABLE).await?;
 
@@ -41,42 +42,27 @@ impl Socket {
           },
         }
       }
-        }
+    }
     loop {
       let ready = stream.ready(Interest::READABLE | Interest::WRITABLE).await?;
 
       if ready.is_readable() {
-        let mut buf = [0; 1024];
-        match stream.try_read(&mut buf) {
-          Ok(buf_size) => {
-            resp.push_str(&String::from_utf8_lossy(&buf));
+              let mut resp = String::new();
+              stream.read_to_string(&mut resp).await?;
 
-            if buf_size != 1024 {
-              let res = resp
-                .clone()
-                .split("\n")
-                .filter(|line| !line.starts_with(">"))
-                .collect::<Vec<&str>>()
-                .join("\n");
+              // let timestamp = Utc::now().format("%Y-%m-%d_%H-%M-%S");
+              // let filename = format!("stats_{}.csv", timestamp);
+              // let mut file = File::create(filename)?;
+              // file.write_all(resp.as_bytes())?;
 
-
-              let stats = HaproxyStat::parse_csv(&res)?;
+              let stats = HaproxyStat::parse_csv(&resp)?;
               action_tx.send(Action::UpdateStats(stats)).unwrap();
+
               break;
-            }
-          },
-          Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-            continue;
-          },
-          Err(e) => {
-            println!("Error: {}", e);
-          },
-        }
       }
     }
     Ok(())
   }
-
   pub async fn collect(&mut self, action_tx: UnboundedSender<Action>) -> Result<()> {
     // Initialize prompt mode, waiting until we can write
     loop {
