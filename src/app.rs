@@ -12,6 +12,7 @@ use crate::{
   components::{fps::FpsCounter, items::Items, Component},
   config::Config,
   layouts::home::HomeLayout,
+  layouts::graphs::GraphLayout,
   mode::Mode,
   stats::{data::HaproxyStat, metrics::HaproxyMetrics, socket::Socket},
   tui,
