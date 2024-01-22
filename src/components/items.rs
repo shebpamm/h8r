@@ -4,7 +4,7 @@ use tokio::sync::mpsc::UnboundedSender;
 
 use super::{Component, Frame};
 use crate::{
-  action::Action,
+  action::{Action, TypingMode},
   config::{Config, KeyBindings},
   stats::{
     data::{HaproxyStat, ResourceType},
@@ -20,6 +20,7 @@ pub struct Items<'a> {
   headers: Vec<String>,
   rows: Vec<Row<'a>>,
   resource: ResourceType,
+  typing_mode: TypingMode,
 }
 
 impl Items<'_> {
@@ -31,7 +32,8 @@ impl Items<'_> {
       headers: Vec::default(),
       metrics: HaproxyMetrics::default(),
       rows: Vec::default(),
-      resource: ResourceType::Combined,
+      resource: ResourceType::default(),
+      typing_mode: TypingMode::default(),
     }
   }
 

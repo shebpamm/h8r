@@ -16,6 +16,11 @@ pub enum TypingMode {
     Navigation,
     Filter,
 }
+impl TypingMode {
+    pub(crate) fn default() -> TypingMode {
+        Self::Navigation
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Display, Deserialize)]
 pub enum Action {

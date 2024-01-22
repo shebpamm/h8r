@@ -134,3 +134,8 @@ pub enum ResourceType {
   Server,
   Combined,
 }
+impl ResourceType {
+    pub(crate) fn default() -> ResourceType {
+        Self::Combined
+    }
+}

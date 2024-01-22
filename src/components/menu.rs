@@ -27,9 +27,9 @@ impl Default for Menu<'_> {
 impl Menu<'_> {
   pub fn new() -> Self {
     Self { 
-            resource: ResourceType::Combined,
+            resource: ResourceType::default(),
             filter: TextArea::default(),
-            typing_mode: TypingMode::Navigation,
+            typing_mode: TypingMode::default(),
         }
   }
 }
