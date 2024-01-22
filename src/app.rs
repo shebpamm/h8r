@@ -17,6 +17,7 @@ use crate::{
   tui,
 };
 
+use tokio::task;
 
 pub struct App {
   pub config: Config,
@@ -64,11 +65,11 @@ impl App {
     self.layout.register_config_handler(self.config.clone())?;
     self.layout.init(tui.size()?)?;
 
-    let mut socket = Socket::new(self.config.config._socket_path.clone()).await?;
+    let mut socket = Socket::new(self.config.config._socket_path.clone())?;
     let socket_tx = action_tx.clone();
 
-    tokio::spawn(async move {
-      socket.collect(socket_tx).await.unwrap();
+    task::spawn_blocking(move || {
+      socket.collect(socket_tx).unwrap();
     });
 
     loop {
