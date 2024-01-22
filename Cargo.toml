@@ -1,9 +1,9 @@
 [package]
-name = "h9s"
+name = "h8r"
 version = "0.1.0"
 edition = "2021"
 description = "k9s but for haproxy"
-repository = "https://github.com/shebpamm/h9s"
+repository = "https://github.com/shebpamm/h8r"
 authors = ["Erik Karsten <erik@opcode.xyz>"]
 build = "build.rs"
 
