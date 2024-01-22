@@ -129,7 +129,7 @@ impl Component for Menu<'_> {
             self.resource = ResourceType::Server;
             Ok(Some(Action::SelectResource(self.resource)))
           },
-          KeyCode::Char('f') => {
+          KeyCode::Char('f') | KeyCode::Char('/') => {
             self.typing_mode = TypingMode::Filter;
             Ok(Some(Action::TypingMode(TypingMode::Filter)))
           },
