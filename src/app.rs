@@ -147,6 +147,9 @@ impl App {
               }
             })?;
           },
+          Action::TypingMode(typing_mode) => {
+            self.typing_mode = typing_mode;
+          },
           _ => {},
         }
         if let Some(action) = self.layout.update(action.clone())? {
