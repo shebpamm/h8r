@@ -43,7 +43,7 @@ impl Config {
     let mut builder = config::Config::builder()
       .set_default("_data_dir", data_dir.to_str().unwrap())?
       .set_default("_config_dir", config_dir.to_str().unwrap())?
-      .set_default("_socket_path", "/run/user/1000/haproxy.sock")?;
+      .set_default("_socket_path", "/var/run/haproxy/admin.sock")?;
 
     let config_files = [
       ("config.json5", config::FileFormat::Json5),
