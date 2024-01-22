@@ -11,7 +11,7 @@ use crate::{
   action::{Action, TypingMode},
   components::{fps::FpsCounter, items::Items, Component},
   config::Config,
-  layout::HomeLayout,
+  layouts::home::HomeLayout,
   mode::Mode,
   stats::{data::HaproxyStat, metrics::HaproxyMetrics, socket::Socket},
   tui,

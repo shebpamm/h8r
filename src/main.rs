@@ -10,7 +10,7 @@ pub mod config;
 pub mod mode;
 pub mod tui;
 pub mod utils;
-pub mod layout;
+pub mod layouts;
 pub mod stats;
 
 use clap::Parser;
