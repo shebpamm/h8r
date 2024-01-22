@@ -108,7 +108,7 @@ impl Component for Menu<'_> {
             },
             input => {
                 self.filter.input(input);
-                Ok(None)
+                Ok(Some(Action::Filter(self.filter.lines()[0].to_string())))
             }
         }
     } else {

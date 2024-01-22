@@ -20,6 +20,7 @@ pub struct Items<'a> {
   headers: Vec<String>,
   rows: Vec<Row<'a>>,
   resource: ResourceType,
+  filter: Option<String>,
 }
 
 impl Items<'_> {
@@ -32,6 +33,7 @@ impl Items<'_> {
       metrics: HaproxyMetrics::default(),
       rows: Vec::default(),
       resource: ResourceType::default(),
+      filter: None,
     }
   }
 
@@ -42,30 +44,58 @@ impl Items<'_> {
       (ResourceType::Frontend, Some(instant)) => {
         self.headers = vec!["".to_string(), "State".to_string(), "Requests".to_string()];
         for frontend in instant.data.frontends {
-          rows.push(Row::new(vec![
-            frontend.name.unwrap_or("".to_string()),
-            frontend.status.to_string(),
-            frontend.requests.to_string(),
-          ]));
+          let name = frontend.name.unwrap_or("".to_string());
+
+          if let Some(filter) = &self.filter {
+            if !name.contains(filter) {
+              continue;
+            }
+          }
+
+          rows.push(Row::new(vec![name, frontend.status.to_string(), frontend.requests.to_string()]));
         }
       },
       (ResourceType::Backend, Some(instant)) => {
         self.headers = vec!["".to_string(), "State".to_string(), "Requests".to_string()];
         for backend in instant.data.backends {
-          rows.push(Row::new(vec![backend.name.unwrap_or("".to_string()), backend.status.to_string(), backend.requests.to_string()]));
+          let name = backend.name.unwrap_or("".to_string());
+
+          if let Some(filter) = &self.filter {
+            if !name.contains(filter) {
+              continue;
+            }
+          }
+
+          rows.push(Row::new(vec![name, backend.status.to_string(), backend.requests.to_string()]));
         }
       },
       (ResourceType::Server, Some(instant)) => {
         self.headers = vec!["".to_string(), "Backend".to_string(), "State".to_string(), "Requests".to_string()];
         for server in instant.data.servers {
-          rows.push(Row::new(vec![server.name.unwrap_or("".to_string()), server.backend_name.unwrap_or("".to_string()), server.status.to_string(), server.requests.to_string()]));
+          let name = server.name.unwrap_or("".to_string());
+
+          if let Some(filter) = &self.filter {
+            if !name.contains(filter) {
+              continue;
+            }
+          }
+
+          rows.push(Row::new(vec![name, server.status.to_string(), server.requests.to_string()]));
         }
       },
       (ResourceType::Combined, Some(instant)) => {
         self.headers = vec!["".to_string(), "Type".to_string(), "State".to_string(), "Requests".to_string()];
         for backend in instant.data.backends {
+          let backend_name = backend.name.unwrap_or("".to_string());
+
+          if let Some(filter) = &self.filter {
+            if !backend_name.contains(filter) {
+              continue;
+            }
+          }
+
           rows.push(Row::new(vec![
-            format!("{}", backend.name.unwrap_or("".to_string())).bold(),
+            format!("{}", backend_name).bold(),
             "Backend".to_string().bold(),
             backend.status.to_string().bold(),
             backend.requests.to_string().bold(),
@@ -152,6 +182,10 @@ impl Component for Items<'_> {
         self.update_rows(self.metrics.clone());
         Ok(None)
       },
+      Action::Filter(filter_string) => {
+        self.filter = Some(filter_string);
+        Ok(None)
+      },
       _ => Ok(None),
     }
   }
@@ -161,19 +195,16 @@ impl Component for Items<'_> {
     for header in &self.headers {
       lengths.push(Constraint::Length(15));
     }
-    
+
     if lengths.is_empty() {
       lengths.push(Constraint::Length(15));
     }
 
     lengths[0] = Constraint::Length(area.width - (lengths.len() as u16 - 1) * 15);
 
-    let table = Table::new(
-      self.rows.clone(),
-      lengths
-    )
-    .header(Row::new(self.headers.clone()).bold())
-    .highlight_style(Style::new().light_yellow());
+    let table = Table::new(self.rows.clone(), lengths)
+      .header(Row::new(self.headers.clone()).bold())
+      .highlight_style(Style::new().light_yellow());
 
     let border = Block::new()
       .title(self.resource.to_string())

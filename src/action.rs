@@ -38,5 +38,6 @@ pub enum Action {
   UpdateStats(Vec<HaproxyStat>),
   MetricUpdate(HaproxyMetrics),
   SelectResource(ResourceType),
-  TypingMode(TypingMode)
+  TypingMode(TypingMode),
+  Filter(String),
 }
