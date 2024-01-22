@@ -4,7 +4,7 @@ use ratatui::layout::{Constraint, Direction, Layout, Rect, Size};
 
 use crate::{
   action::Action,
-  components::{items::Items, menu::Menu, Component, fps::FpsCounter},
+  components::{fps::FpsCounter, items::Items, menu::Menu, Component},
   config::Config,
   tui::{Event, Frame},
 };
@@ -24,9 +24,11 @@ impl HomeLayout {
     Self {
       components,
       action_handler: None,
-      layout: Layout::default()
-        .direction(Direction::Vertical)
-        .constraints(vec![Constraint::Length(6), Constraint::Min(0), Constraint::Length(1)]),
+      layout: Layout::default().direction(Direction::Vertical).constraints(vec![
+        Constraint::Length(6),
+        Constraint::Min(0),
+        Constraint::Length(1),
+      ]),
     }
   }
 }

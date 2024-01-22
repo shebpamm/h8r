@@ -13,13 +13,13 @@ use crate::stats::data::{HaproxyStat, ResourceType};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Display, Deserialize)]
 pub enum TypingMode {
-    Navigation,
-    Filter,
+  Navigation,
+  Filter,
 }
 impl TypingMode {
-    pub(crate) fn default() -> TypingMode {
-        Self::Navigation
-    }
+  pub(crate) fn default() -> TypingMode {
+    Self::Navigation
+  }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Display, Deserialize)]

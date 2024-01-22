@@ -7,7 +7,11 @@ use ratatui::{
 };
 use tui_textarea::TextArea;
 
-use crate::{action::{Action, TypingMode}, stats::data::ResourceType, tui::Frame};
+use crate::{
+  action::{Action, TypingMode},
+  stats::data::ResourceType,
+  tui::Frame,
+};
 
 use super::Component;
 
@@ -26,22 +30,18 @@ impl Default for Menu<'_> {
 
 impl Menu<'_> {
   pub fn new() -> Self {
-    Self { 
-            resource: ResourceType::default(),
-            filter: TextArea::default(),
-            typing_mode: TypingMode::default(),
-        }
+    Self { resource: ResourceType::default(), filter: TextArea::default(), typing_mode: TypingMode::default() }
   }
 }
 
 impl Component for Menu<'_> {
   fn update(&mut self, action: Action) -> Result<Option<Action>> {
     match action {
-        Action::TypingMode(typing_mode) => {
-            self.typing_mode = typing_mode;
-            Ok(None)
-        },
-        _ => Ok(None),
+      Action::TypingMode(typing_mode) => {
+        self.typing_mode = typing_mode;
+        Ok(None)
+      },
+      _ => Ok(None),
     }
   }
 
@@ -53,22 +53,18 @@ impl Component for Menu<'_> {
       .constraints(vec![Constraint::Length(15), Constraint::Min(0)])
       .split(rect);
 
-    let lengths = vec![Constraint::Length(1); resources.len()+1];
+    let lengths = vec![Constraint::Length(1); resources.len() + 1];
 
-    let left = Layout::default()
-      .direction(Direction::Vertical)
-      .constraints(lengths)
-      .split(sides[0]);
+    let left = Layout::default().direction(Direction::Vertical).constraints(lengths).split(sides[0]);
 
     let right = Layout::default()
       .direction(Direction::Vertical)
       .constraints(vec![Constraint::Length(3), Constraint::Min(0)])
       .split(sides[1]);
 
-
     let resource_border =
       Block::new().title("Resource").borders(Borders::ALL).border_style(Style::default().fg(Color::White));
-    
+
     f.render_widget(resource_border, sides[0]);
     for i in 0..resources.len() {
       let resource = resources[i];
@@ -81,15 +77,12 @@ impl Component for Menu<'_> {
       f.render_widget(resource_widget, left[i + 1]);
     }
 
-    let filter_border =
-      Block::new().title("Filter").borders(Borders::ALL);
+    let filter_border = Block::new().title("Filter").borders(Borders::ALL);
 
     let filter_border = match self.typing_mode {
-        TypingMode::Filter => 
-            filter_border.border_style(Style::default().fg(Color::Yellow)),
-        _ => filter_border.border_style(Style::default().fg(Color::White)),
+      TypingMode::Filter => filter_border.border_style(Style::default().fg(Color::Yellow)),
+      _ => filter_border.border_style(Style::default().fg(Color::White)),
     };
-
 
     f.render_widget(self.filter.widget(), filter_border.inner(right[0]));
 
@@ -100,41 +93,40 @@ impl Component for Menu<'_> {
 
   fn handle_key_events(&mut self, key: KeyEvent) -> Result<Option<Action>> {
     if self.typing_mode == TypingMode::Filter {
-        match key {
-            KeyEvent { code: KeyCode::Esc, .. } |
-            KeyEvent { code: KeyCode::Enter, .. } => {
-                self.typing_mode = TypingMode::Navigation;
-                Ok(Some(Action::TypingMode(TypingMode::Navigation)))
-            },
-            input => {
-                self.filter.input(input);
-                Ok(Some(Action::Filter(self.filter.lines()[0].to_string())))
-            }
-        }
+      match key {
+        KeyEvent { code: KeyCode::Esc, .. } | KeyEvent { code: KeyCode::Enter, .. } => {
+          self.typing_mode = TypingMode::Navigation;
+          Ok(Some(Action::TypingMode(TypingMode::Navigation)))
+        },
+        input => {
+          self.filter.input(input);
+          Ok(Some(Action::Filter(self.filter.lines()[0].to_string())))
+        },
+      }
     } else {
-        match key.code {
-          KeyCode::Char('0') => {
-            self.resource = ResourceType::Combined;
-            Ok(Some(Action::SelectResource(self.resource)))
-          },
-          KeyCode::Char('1') => {
-            self.resource = ResourceType::Backend;
-            Ok(Some(Action::SelectResource(self.resource)))
-          },
-          KeyCode::Char('2') => {
-            self.resource = ResourceType::Frontend;
-            Ok(Some(Action::SelectResource(self.resource)))
-          },
-          KeyCode::Char('3') => {
-            self.resource = ResourceType::Server;
-            Ok(Some(Action::SelectResource(self.resource)))
-          },
-          KeyCode::Char('f') | KeyCode::Char('/') => {
-            self.typing_mode = TypingMode::Filter;
-            Ok(Some(Action::TypingMode(TypingMode::Filter)))
-          },
-          _ => Ok(None),
-        }
+      match key.code {
+        KeyCode::Char('0') => {
+          self.resource = ResourceType::Combined;
+          Ok(Some(Action::SelectResource(self.resource)))
+        },
+        KeyCode::Char('1') => {
+          self.resource = ResourceType::Backend;
+          Ok(Some(Action::SelectResource(self.resource)))
+        },
+        KeyCode::Char('2') => {
+          self.resource = ResourceType::Frontend;
+          Ok(Some(Action::SelectResource(self.resource)))
+        },
+        KeyCode::Char('3') => {
+          self.resource = ResourceType::Server;
+          Ok(Some(Action::SelectResource(self.resource)))
+        },
+        KeyCode::Char('f') | KeyCode::Char('/') => {
+          self.typing_mode = TypingMode::Filter;
+          Ok(Some(Action::TypingMode(TypingMode::Filter)))
+        },
+        _ => Ok(None),
+      }
     }
   }
 }

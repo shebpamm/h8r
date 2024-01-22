@@ -141,5 +141,4 @@ pub trait Component {
   fn move_down(&mut self) -> Result<Option<Action>> {
     Ok(None)
   }
-
 }

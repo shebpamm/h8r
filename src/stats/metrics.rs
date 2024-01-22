@@ -1,5 +1,5 @@
 use chrono::{DateTime, Local};
-use serde::{Deserialize, Serialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::str::FromStr;
 
 use color_eyre::eyre::Result;
@@ -135,17 +135,14 @@ impl HaproxyMetrics {
           servers.push(HaproxyServer::new(row.to_owned())?);
         },
         _ => {
-            log::warn!("Unknown resource type: {:?}", row);
-                },
+          log::warn!("Unknown resource type: {:?}", row);
+        },
       }
     }
 
     for backend in &mut backends {
-      backend.servers = servers
-        .iter()
-        .filter(|server| server.backend_name == backend.name)
-        .cloned()
-        .collect::<Vec<HaproxyServer>>();
+      backend.servers =
+        servers.iter().filter(|server| server.backend_name == backend.name).cloned().collect::<Vec<HaproxyServer>>();
     }
 
     self.instant = Some(InstantHaproxyMetrics {
@@ -159,9 +156,9 @@ impl HaproxyMetrics {
 
 fn deserialize_null_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
 where
-    T: Default + Deserialize<'de>,
-    D: Deserializer<'de>,
+  T: Default + Deserialize<'de>,
+  D: Deserializer<'de>,
 {
-    let opt = Option::deserialize(deserializer)?;
-    Ok(opt.unwrap_or_default())
+  let opt = Option::deserialize(deserializer)?;
+  Ok(opt.unwrap_or_default())
 }

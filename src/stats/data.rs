@@ -135,7 +135,7 @@ pub enum ResourceType {
   Combined,
 }
 impl ResourceType {
-    pub(crate) fn default() -> ResourceType {
-        Self::Combined
-    }
+  pub(crate) fn default() -> ResourceType {
+    Self::Combined
+  }
 }

@@ -11,8 +11,8 @@ use crate::{
   action::{Action, TypingMode},
   components::{fps::FpsCounter, items::Items, Component},
   config::Config,
-  layouts::home::HomeLayout,
   layouts::graphs::GraphLayout,
+  layouts::home::HomeLayout,
   mode::Mode,
   stats::{data::HaproxyStat, metrics::HaproxyMetrics, socket::Socket},
   tui,
@@ -112,14 +112,14 @@ impl App {
         match action.clone() {
           Action::MoveUp => {
             match self.typing_mode {
-                TypingMode::Navigation => self.layout.move_up()?,
-                _ => None
+              TypingMode::Navigation => self.layout.move_up()?,
+              _ => None,
             };
           },
           Action::MoveDown => {
             match self.typing_mode {
-                TypingMode::Navigation => self.layout.move_down()?,
-                _ => None
+              TypingMode::Navigation => self.layout.move_down()?,
+              _ => None,
             };
           },
           Action::UpdateStats(stats) => {
