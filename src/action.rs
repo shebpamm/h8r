@@ -12,6 +12,12 @@ use tokio::sync::RwLock;
 use crate::stats::data::{HaproxyStat, ResourceType};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Display, Deserialize)]
+pub enum TypingMode {
+    Navigation,
+    Filter,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Display, Deserialize)]
 pub enum Action {
   Tick,
   Render,
@@ -27,4 +33,5 @@ pub enum Action {
   UpdateStats(Vec<HaproxyStat>),
   MetricUpdate(HaproxyMetrics),
   SelectResource(ResourceType),
+  TypingMode(TypingMode)
 }

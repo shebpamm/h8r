@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
 use crate::{
-  action::Action,
+  action::{Action, TypingMode},
   components::{fps::FpsCounter, items::Items, Component},
   config::Config,
   layout::HomeLayout,
@@ -16,6 +16,7 @@ use crate::{
   stats::{data::HaproxyStat, metrics::HaproxyMetrics, socket::Socket},
   tui,
 };
+
 
 pub struct App {
   pub config: Config,
@@ -27,6 +28,7 @@ pub struct App {
   pub mode: Mode,
   pub last_tick_key_events: Vec<KeyEvent>,
   pub haproxy_metrics: HaproxyMetrics,
+  pub typing_mode: TypingMode,
 }
 
 impl App {
@@ -47,6 +49,7 @@ impl App {
       mode,
       last_tick_key_events: Vec::new(),
       haproxy_metrics: HaproxyMetrics::new(),
+      typing_mode: TypingMode::Navigation,
     })
   }
 
@@ -106,10 +109,16 @@ impl App {
         }
         match action.clone() {
           Action::MoveUp => {
-            self.layout.move_up()?;
+            match self.typing_mode {
+                TypingMode::Navigation => self.layout.move_up()?,
+                _ => None
+            };
           },
           Action::MoveDown => {
-            self.layout.move_down()?;
+            match self.typing_mode {
+                TypingMode::Navigation => self.layout.move_down()?,
+                _ => None
+            };
           },
           Action::UpdateStats(stats) => {
             self.haproxy_metrics.update(stats)?;
