@@ -1,3 +1,4 @@
+use crate::mode::Mode;
 use crate::stats::metrics::HaproxyMetrics;
 use std::sync::Arc;
 use std::{fmt, string::ToString};
@@ -40,4 +41,7 @@ pub enum Action {
   SelectResource(ResourceType),
   TypingMode(TypingMode),
   Filter(String),
+  SwitchMode(Mode),
+  UseItem(String),
+  SelectItem,
 }

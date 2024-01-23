@@ -18,16 +18,12 @@ pub struct GraphLayout {
 impl GraphLayout {
   pub fn new() -> Self {
     let mut components: Vec<Box<dyn Component>> = Vec::new();
-    components.push(Box::new(Menu::new()));
-    components.push(Box::new(Items::new()));
     components.push(Box::new(FpsCounter::new()));
     Self {
       components,
       action_handler: None,
       layout: Layout::default().direction(Direction::Vertical).constraints(vec![
-        Constraint::Length(6),
         Constraint::Min(0),
-        Constraint::Length(1),
       ]),
     }
   }

@@ -1,5 +1,6 @@
 use color_eyre::{eyre::Result, owo_colors::OwoColorize};
 use ratatui::{prelude::*, widgets::*};
+use std::collections::HashMap;
 use tokio::sync::mpsc::UnboundedSender;
 
 use super::{Component, Frame};
@@ -8,8 +9,8 @@ use crate::{
   config::{Config, KeyBindings},
   stats::{
     data::{HaproxyStat, ResourceType},
-    metrics::HaproxyMetrics,
-  },
+    metrics::{HaproxyBackend, HaproxyMetrics},
+  }, mode::Mode,
 };
 
 pub struct Items<'a> {
@@ -19,6 +20,7 @@ pub struct Items<'a> {
   metrics: HaproxyMetrics,
   headers: Vec<String>,
   rows: Vec<Row<'a>>,
+  row_lookup: HashMap<Row<'a>, HaproxyBackend>,
   resource: ResourceType,
   filter: Option<String>,
 }
@@ -32,6 +34,7 @@ impl Items<'_> {
       headers: Vec::default(),
       metrics: HaproxyMetrics::default(),
       rows: Vec::default(),
+      row_lookup: HashMap::new(),
       resource: ResourceType::default(),
       filter: None,
     }
@@ -39,6 +42,7 @@ impl Items<'_> {
 
   fn update_rows(&mut self, data: HaproxyMetrics) {
     let mut rows = Vec::new();
+    let mut row_lookup: HashMap<Row, HaproxyBackend> = HashMap::new();
 
     match (self.resource, data.instant) {
       (ResourceType::Frontend, Some(instant)) => {
@@ -52,13 +56,14 @@ impl Items<'_> {
             }
           }
 
-          rows.push(Row::new(vec![name, frontend.status.to_string(), frontend.requests.to_string()]));
+          let row = Row::new(vec![name, frontend.status.to_string(), frontend.requests.to_string()]);
+          rows.push(row);
         }
       },
       (ResourceType::Backend, Some(instant)) => {
         self.headers = vec!["".to_string(), "State".to_string(), "Requests".to_string()];
         for backend in instant.data.backends {
-          let name = backend.name.unwrap_or("".to_string());
+          let name = backend.clone().name.unwrap_or("".to_string());
 
           if let Some(filter) = &self.filter {
             if !name.contains(filter) {
@@ -66,7 +71,9 @@ impl Items<'_> {
             }
           }
 
-          rows.push(Row::new(vec![name, backend.status.to_string(), backend.requests.to_string()]));
+          let row = Row::new(vec![name, backend.status.to_string(), backend.requests.to_string()]);
+          row_lookup.insert(row.clone(), backend);
+          rows.push(row);
         }
       },
       (ResourceType::Server, Some(instant)) => {
@@ -80,13 +87,14 @@ impl Items<'_> {
             }
           }
 
-          rows.push(Row::new(vec![name, server.status.to_string(), server.requests.to_string()]));
+          let row = Row::new(vec![name, server.status.to_string(), server.requests.to_string()]);
+          rows.push(row);
         }
       },
       (ResourceType::Combined, Some(instant)) => {
         self.headers = vec!["".to_string(), "Type".to_string(), "State".to_string(), "Requests".to_string()];
         for backend in instant.data.backends {
-          let backend_name = backend.name.unwrap_or("".to_string());
+          let backend_name = backend.clone().name.unwrap_or("".to_string());
 
           if let Some(filter) = &self.filter {
             if !backend_name.contains(filter) {
@@ -94,12 +102,14 @@ impl Items<'_> {
             }
           }
 
-          rows.push(Row::new(vec![
+          let backend_row = Row::new(vec![
             format!("{}", backend_name).bold(),
             "Backend".to_string().bold(),
             backend.status.to_string().bold(),
             backend.requests.to_string().bold(),
-          ]));
+          ]);
+          row_lookup.insert(backend_row.clone(), backend.clone());
+          rows.push(backend_row);
           for server in backend.servers {
             rows.push(Row::new(vec![
               format!("└ {}", server.name.unwrap_or("".to_string())),
@@ -116,6 +126,7 @@ impl Items<'_> {
       },
     }
 
+    self.row_lookup = row_lookup;
     self.rows = rows;
   }
 }
@@ -187,6 +198,23 @@ impl Component for Items<'_> {
         self.state.select(Some(0));
         Ok(None)
       },
+      Action::SelectItem => {
+        log::info!("Selected: {:?}", self.state.selected());
+        if let Some(selection) = self.state.selected() {
+          if let Some(row) = self.rows.get(selection) {
+            if let Some(data) = &self.row_lookup.get(row) {
+              if let Some(tx) = &self.command_tx {
+                let name = data.name.clone().unwrap_or("".to_string());
+
+                tx.send(Action::SwitchMode(Mode::Graph))?;
+                tx.send(Action::UseItem(name))?;
+              }
+            }
+          }
+        }
+        Ok(None)
+      },
+
       _ => Ok(None),
     }
   }

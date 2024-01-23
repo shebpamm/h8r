@@ -9,6 +9,7 @@
       "<k>": "MoveUp", // Move up
       "<Up>": "MoveUp", // Move up
       "<Down>": "MoveDown", // Move down
+      "<Enter>": "SelectItem", // Move down
     },
   }
 }

@@ -37,9 +37,7 @@ impl App {
   pub fn new(tick_rate: f64, frame_rate: f64) -> Result<Self> {
     let config = Config::new()?;
     let mode = Mode::Home;
-    let layout = match mode {
-      Mode::Home => Box::new(HomeLayout::new()),
-    };
+    let layout = Box::new(HomeLayout::new());
 
     Ok(Self {
       tick_rate,
@@ -153,6 +151,14 @@ impl App {
           Action::TypingMode(typing_mode) => {
             self.typing_mode = typing_mode;
           },
+          Action::SwitchMode(mode) => {
+            self.mode = mode;
+            self.layout = self.get_layout();
+
+            self.layout.register_action_handler(action_tx.clone())?;
+            self.layout.register_config_handler(self.config.clone())?;
+            self.layout.init(tui.size()?)?;
+          },
           _ => {},
         }
         if let Some(action) = self.layout.update(action.clone())? {
@@ -172,5 +178,12 @@ impl App {
     }
     tui.exit()?;
     Ok(())
+  }
+
+  fn get_layout(&self) -> Box<dyn Component> {
+    match self.mode {
+      Mode::Home => Box::new(HomeLayout::new()),
+      Mode::Graph => Box::new(GraphLayout::new()),
+    }
   }
 }
