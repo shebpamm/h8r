@@ -4,7 +4,7 @@ use ratatui::layout::Rect;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
-  action::Action,
+  action::{Action, TypingMode},
   config::Config,
   tui::{Event, Frame},
 };
@@ -67,7 +67,7 @@ pub trait Component {
   /// * `Result<Option<Action>>` - An action to be processed or none.
   fn handle_events(&mut self, event: Option<Event>) -> Result<Option<Action>> {
     let r = match event {
-      Some(Event::Key(key_event)) => self.handle_key_events(key_event)?,
+      Some(Event::ModeKey(typing_mode, key_event)) => self.handle_key_events(typing_mode, key_event)?,
       Some(Event::Mouse(mouse_event)) => self.handle_mouse_events(mouse_event)?,
       _ => None,
     };
@@ -83,7 +83,7 @@ pub trait Component {
   ///
   /// * `Result<Option<Action>>` - An action to be processed or none.
   #[allow(unused_variables)]
-  fn handle_key_events(&mut self, key: KeyEvent) -> Result<Option<Action>> {
+  fn handle_key_events(&mut self, typing_mode: TypingMode, key: KeyEvent) -> Result<Option<Action>> {
     Ok(None)
   }
   /// Handle mouse events and produce actions if necessary.

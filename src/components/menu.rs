@@ -19,7 +19,7 @@ use super::Component;
 pub struct Menu<'a> {
   resource: ResourceType,
   filter: TextArea<'a>,
-  typing_mode: TypingMode,
+  focused: bool,
 }
 
 impl Default for Menu<'_> {
@@ -30,7 +30,7 @@ impl Default for Menu<'_> {
 
 impl Menu<'_> {
   pub fn new() -> Self {
-    Self { resource: ResourceType::default(), filter: TextArea::default(), typing_mode: TypingMode::default() }
+    Self { resource: ResourceType::default(), filter: TextArea::default(), focused: false }
   }
 }
 
@@ -38,7 +38,7 @@ impl Component for Menu<'_> {
   fn update(&mut self, action: Action) -> Result<Option<Action>> {
     match action {
       Action::TypingMode(typing_mode) => {
-        self.typing_mode = typing_mode;
+        self.focused = typing_mode == TypingMode::Filter;
         Ok(None)
       },
       _ => Ok(None),
@@ -79,9 +79,9 @@ impl Component for Menu<'_> {
 
     let filter_border = Block::new().title("Filter").borders(Borders::ALL);
 
-    let filter_border = match self.typing_mode {
-      TypingMode::Filter => filter_border.border_style(Style::default().fg(Color::Yellow)),
-      _ => filter_border.border_style(Style::default().fg(Color::White)),
+    let filter_border = match self.focused {
+      true => filter_border.border_style(Style::default().fg(Color::Yellow)),
+      false => filter_border.border_style(Style::default().fg(Color::White)),
     };
 
     f.render_widget(self.filter.widget(), filter_border.inner(right[0]));
@@ -91,11 +91,11 @@ impl Component for Menu<'_> {
     Ok(())
   }
 
-  fn handle_key_events(&mut self, key: KeyEvent) -> Result<Option<Action>> {
-    if self.typing_mode == TypingMode::Filter {
+  fn handle_key_events(&mut self, typing_mode: TypingMode, key: KeyEvent) -> Result<Option<Action>> {
+    if typing_mode == TypingMode::Filter {
       match key {
         KeyEvent { code: KeyCode::Esc, .. } | KeyEvent { code: KeyCode::Enter, .. } => {
-          self.typing_mode = TypingMode::Navigation;
+          self.focused = false;
           Ok(Some(Action::TypingMode(TypingMode::Navigation)))
         },
         input => {
@@ -122,7 +122,7 @@ impl Component for Menu<'_> {
           Ok(Some(Action::SelectResource(self.resource)))
         },
         KeyCode::Char('f') | KeyCode::Char('/') => {
-          self.typing_mode = TypingMode::Filter;
+          self.focused = true;
           Ok(Some(Action::TypingMode(TypingMode::Filter)))
         },
         _ => Ok(None),

@@ -21,6 +21,8 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 
+use crate::action::TypingMode;
+
 pub type IO = std::io::Stdout;
 pub fn io() -> IO {
   std::io::stdout()
@@ -39,6 +41,7 @@ pub enum Event {
   FocusLost,
   Paste(String),
   Key(KeyEvent),
+  ModeKey(TypingMode, KeyEvent),
   Mouse(MouseEvent),
   Resize(u16, u16),
 }

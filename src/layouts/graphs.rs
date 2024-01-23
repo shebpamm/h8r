@@ -3,7 +3,7 @@ use crossterm::event::KeyEvent;
 use ratatui::layout::{Constraint, Direction, Layout, Rect, Size};
 
 use crate::{
-  action::Action,
+  action::{Action, TypingMode},
   components::{fps::FpsCounter, items::Items, menu::Menu, Component},
   config::Config,
   tui::{Event, Frame},
@@ -84,7 +84,7 @@ impl Component for GraphLayout {
 
   fn handle_events(&mut self, event: Option<Event>) -> Result<Option<Action>> {
     let r = match event {
-      Some(crate::tui::Event::Key(key_event)) => self.handle_key_events(key_event)?,
+      Some(crate::tui::Event::ModeKey(typing_mode, key_event)) => self.handle_key_events(typing_mode, key_event)?,
       Some(crate::tui::Event::Mouse(mouse_event)) => self.handle_mouse_events(mouse_event)?,
       _ => None,
     };
@@ -109,10 +109,10 @@ impl Component for GraphLayout {
     Ok(None)
   }
 
-  fn handle_key_events(&mut self, key: KeyEvent) -> Result<Option<Action>> {
+  fn handle_key_events(&mut self, typing_mode: TypingMode, key: KeyEvent) -> Result<Option<Action>> {
     let mut actions: Vec<Action> = Vec::new();
     for component in self.components.iter_mut() {
-      if let Some(action) = component.handle_key_events(key.clone())? {
+      if let Some(action) = component.handle_key_events(typing_mode.clone(), key.clone())? {
         actions.push(action);
       }
     }

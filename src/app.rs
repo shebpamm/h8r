@@ -74,7 +74,7 @@ impl App {
     });
 
     loop {
-      if let Some(e) = tui.next().await {
+      if let Some(mut e) = tui.next().await {
         match e {
           tui::Event::Quit => action_tx.send(Action::Quit)?,
           tui::Event::Tick => action_tx.send(Action::Tick)?,
@@ -97,6 +97,7 @@ impl App {
                 }
               }
             };
+            e = tui::Event::ModeKey(self.typing_mode.clone(), key);
           },
           _ => {},
         }
