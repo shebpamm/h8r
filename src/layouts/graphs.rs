@@ -1,5 +1,5 @@
 use color_eyre::eyre::Result;
-use crossterm::event::KeyEvent;
+use crossterm::event::{KeyEvent, KeyCode};
 use ratatui::layout::{Constraint, Direction, Layout, Rect, Size};
 
 use crate::{
@@ -18,7 +18,7 @@ pub struct GraphLayout {
 impl GraphLayout {
   pub fn new() -> Self {
     let mut components: Vec<Box<dyn Component>> = Vec::new();
-    components.push(Box::new(FpsCounter::new()));
+    components.push(Box::new(Menu::new()));
     Self {
       components,
       action_handler: None,
@@ -106,6 +106,11 @@ impl Component for GraphLayout {
   }
 
   fn handle_key_events(&mut self, typing_mode: TypingMode, key: KeyEvent) -> Result<Option<Action>> {
+    // hack because i don't bother with fixing this in app.rs
+    if key.code == KeyCode::Char('q') {
+      return Ok(Some(Action::Quit));
+    }
+
     let mut actions: Vec<Action> = Vec::new();
     for component in self.components.iter_mut() {
       if let Some(action) = component.handle_key_events(typing_mode.clone(), key.clone())? {
