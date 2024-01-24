@@ -35,50 +35,63 @@ impl HTTPErrorChart {
     Self { data: Vec::new(), selected_backend: None, x_bounds: [0., 0.] }
   }
 
-  fn update_dataset(&mut self, metrics: HaproxyMetrics) -> Result<()> {
+  fn calculate_bounds(&self) -> Option<[f64; 2]> {
+    let first = self.data.first().map(|point| point.0);
+    let last = self.data.last().map(|point| point.0);
+
+    match (first, last) {
+      (Some(first), Some(last)) => Some([first, last]),
+      _ => None,
+    }
+  }
+
+  fn calculate_data(&self, metrics: HaproxyMetrics) -> Vec<(f64, f64)> {
     // Data is an array of f64 tuples ((f64, f64)), the first element being X and the second Y.
     // It’s also worth noting that, unlike the Rect, here the Y axis is bottom to top, as in
     // math.
     let mut data: Vec<(f64, f64)> = Vec::new();
     for instant in metrics.history {
-      let mut time = instant.time.timestamp_millis() as f64;
-      // relative to current timestamp
-      time = time - metrics.instant.clone().unwrap().time.timestamp_millis() as f64;
+        let mut time = instant.time.timestamp_millis() as f64;
+        // relative to current timestamp
+        time = time - metrics.instant.clone().unwrap().time.timestamp_millis() as f64;
 
-      // in seconds
-      time = time / 1000.0;
+        // in seconds
+        time = time / 1000.0;
 
-      // find the correct backend
-      let backend = instant.data.backends.iter().find(|b| b.name == self.selected_backend);
-      if let Some(backend) = backend {
-        let errors = backend.http_400_req as f64;
-        data.push((time, errors));
-      }
+        // find the correct backend
+        let backend = instant.data.backends.iter().find(|b| b.name == self.selected_backend);
+        if let Some(backend) = backend {
+            let errors = backend.http_400_req as f64;
+            data.push((time, errors));
+        }
     }
-    self.data = data;
-
     // Calculate rate of change
     let mut rate_of_change_data: Vec<(f64, f64)> = Vec::new();
-    for i in 0..self.data.len() - 1 {
-      let (x1, y1) = self.data[i];
-      let (x2, y2) = self.data[i + 1];
+    for i in 0..data.len() - 1 {
+        let (x1, y1) = data[i];
+        let (x2, y2) = data[i + 1];
 
-      // Calculate rate of change (derivative)
-      let delta_x = x2 - x1;
-      let delta_y = y2 - y1;
-      let rate_of_change = delta_y / delta_x;
+        // Calculate rate of change (derivative)
+        let delta_x = x2 - x1;
+        let delta_y = y2 - y1;
+        let rate_of_change = delta_y / delta_x;
 
-      rate_of_change_data.push((x1, rate_of_change));
+        rate_of_change_data.push((x1, rate_of_change));
     }
-    self.data = rate_of_change_data;
+    rate_of_change_data
+  }
 
-    // Find seconds between first and last data point
-    let first = self.data.first().map_or(0.0, |point| point.0);
-    let last = self.data.last().map_or(0.0, |point| point.0);
-    let seconds = last - first;
+  fn update_dataset(&mut self, metrics: HaproxyMetrics) -> Result<()> {
+    // Calculate data
+    let data = self.calculate_data(metrics);
+    self.data = data;
 
-    // Set the X bounds to be the first and last data point
-    self.x_bounds = [first, last];
+    // Calculate bounds
+    if let Some(bounds) = self.calculate_bounds() {
+      self.x_bounds = bounds;
+    } else {
+      self.x_bounds = [0., 0.];
+    }
 
     Ok(())
   }
