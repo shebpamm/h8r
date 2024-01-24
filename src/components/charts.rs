@@ -11,7 +11,7 @@ use tui_textarea::TextArea;
 
 use crate::{
   action::{Action, TypingMode},
-  stats::data::ResourceType,
+  stats::{data::ResourceType, metrics::HaproxyMetrics},
   tui::Frame,
 };
 
@@ -19,6 +19,9 @@ use super::Component;
 
 #[derive(Debug, Clone)]
 pub struct HTTPErrorChart {
+  data: Vec<(f64, f64)>,
+  x_bounds: [f64; 2],
+  selected_backend: Option<String>,
 }
 
 impl Default for HTTPErrorChart {
@@ -29,38 +32,95 @@ impl Default for HTTPErrorChart {
 
 impl HTTPErrorChart {
   pub fn new() -> Self {
-    Self { }
+    Self { data: Vec::new(), selected_backend: None, x_bounds: [0., 0.] }
+  }
+
+  fn update_dataset(&mut self, metrics: HaproxyMetrics) -> Result<()> {
+    // Data is an array of f64 tuples ((f64, f64)), the first element being X and the second Y.
+    // It’s also worth noting that, unlike the Rect, here the Y axis is bottom to top, as in
+    // math.
+    let mut data: Vec<(f64, f64)> = Vec::new();
+    for instant in metrics.history {
+      let mut time = instant.time.timestamp_millis() as f64;
+      // relative to current timestamp
+      time = time - metrics.instant.clone().unwrap().time.timestamp_millis() as f64;
+
+      // in seconds
+      time = time / 1000.0;
+
+      // find the correct backend
+      let backend = instant.data.backends.iter().find(|b| b.name == self.selected_backend);
+      if let Some(backend) = backend {
+        let errors = backend.http_400_req as f64;
+        data.push((time, errors));
+      }
+    }
+    self.data = data;
+
+    // Calculate rate of change
+    let mut rate_of_change_data: Vec<(f64, f64)> = Vec::new();
+    for i in 0..self.data.len() - 1 {
+      let (x1, y1) = self.data[i];
+      let (x2, y2) = self.data[i + 1];
+
+      // Calculate rate of change (derivative)
+      let delta_x = x2 - x1;
+      let delta_y = y2 - y1;
+      let rate_of_change = delta_y / delta_x;
+
+      rate_of_change_data.push((x1, rate_of_change));
+    }
+    self.data = rate_of_change_data;
+
+    // Find seconds between first and last data point
+    let first = self.data.first().map_or(0.0, |point| point.0);
+    let last = self.data.last().map_or(0.0, |point| point.0);
+    let seconds = last - first;
+
+    // Set the X bounds to be the first and last data point
+    self.x_bounds = [first, last];
+
+    Ok(())
   }
 }
 
 impl Component for HTTPErrorChart {
   fn update(&mut self, action: Action) -> Result<Option<Action>> {
+    match action {
+      Action::MetricUpdate(metrics) => {
+        self.update_dataset(metrics)?;
         Ok(None)
+      },
+      Action::UseItem(backend_name) => {
+        self.selected_backend = Some(backend_name);
+        Ok(None)
+      },
+      _ => Ok(None),
+    }
   }
 
   fn draw(&mut self, f: &mut Frame<'_>, rect: Rect) -> Result<()> {
-    let border = Block::default().borders(Borders::ALL).border_style(Style::default().fg(Color::Yellow));
+    let dataset =
+      Dataset::default().name("HTTP Errors").data(&self.data).marker(Marker::Braille).graph_type(GraphType::Line).red();
 
-    let sides = Layout::default()
-      .direction(Direction::Horizontal)
-      .constraints(vec![Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)])
-      .split(border.inner(rect));
+    // Create the X axis and define its properties
+    let x_axis = Axis::default()
+      .title("X Axis".red())
+      .style(Style::default().white())
+      .bounds(self.x_bounds)
+      .labels(vec![self.x_bounds[0].floor().to_string().bold(), self.x_bounds[1].floor().to_string().bold()]);
 
-    let lengths = vec![Constraint::Length(1); 3];
+    // Create the Y axis and define its properties
+    let y_axis = Axis::default()
+      .title("Y Axis".green())
+      .style(Style::default().white())
+      .bounds([0.0, 10.0])
+      .labels(vec!["0.0".into(), "5.0".into(), "10.0".into()]);
 
-    let left = Layout::default().direction(Direction::Vertical).constraints(lengths.clone()).split(sides[0]);
-    let right = Layout::default().direction(Direction::Vertical).constraints(lengths.clone()).split(sides[1]);
+    // Create the chart and link all the parts together
+    let chart = Chart::new(vec![dataset]).block(Block::default().title("Chart")).x_axis(x_axis).y_axis(y_axis);
 
-    f.render_widget(border.clone(), rect);
-    for i in 0..lengths.len() {
-      let key = Span::styled(format!("{}: ", i), Style::default().fg(Color::Yellow));
-      let value = Span::styled("test", Style::default().fg(Color::White));
-      
-      let text = Paragraph::new(Line::from(vec![key, value]));
-
-      f.render_widget(text.clone(), left[i]);
-      f.render_widget(text, right[i]);
-    }
+    f.render_widget(chart, rect);
 
     Ok(())
   }

@@ -81,6 +81,10 @@ pub struct HaproxyBackend {
   pub backup_servers: i64,
   #[serde(rename = "scur")]
   pub sessions: i64,
+  #[serde(rename = "hrsp_5xx")]
+  pub http_500_req: f64,
+  #[serde(rename = "hrsp_4xx")]
+  pub http_400_req: f64,
 
   #[serde(skip)]
   pub servers: Vec<HaproxyServer>,
@@ -159,6 +163,8 @@ impl HaproxyMetrics {
       data: InstantHaproxyMetricData { raw: data, frontends, backends, servers },
       time: Local::now(),
     });
+
+    self.history.push(self.instant.clone().unwrap());
 
     Ok(())
   }
