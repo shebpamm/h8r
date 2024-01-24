@@ -92,7 +92,7 @@ impl Items<'_> {
         }
       },
       (ResourceType::Combined, Some(instant)) => {
-        self.headers = vec!["".to_string(), "Type".to_string(), "State".to_string(), "Requests".to_string()];
+        self.headers = vec!["".to_string(), "Type".to_string(), "State".to_string(), "Code".to_string(), "Requests".to_string()];
         for backend in instant.data.backends {
           let backend_name = backend.clone().name.unwrap_or("".to_string());
 
@@ -106,6 +106,7 @@ impl Items<'_> {
             format!("{}", backend_name).bold(),
             "Backend".to_string().bold(),
             backend.status.to_string().bold(),
+            "".to_string().bold(),
             backend.requests.to_string().bold(),
           ]);
           row_lookup.insert(backend_row.clone(), backend.clone());
@@ -115,6 +116,7 @@ impl Items<'_> {
               format!("└ {}", server.name.unwrap_or("".to_string())),
               "Server".to_string(),
               server.status.to_string(),
+              server.status_code.to_string(),
               server.requests.to_string(),
             ]));
           }

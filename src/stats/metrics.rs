@@ -73,6 +73,14 @@ pub struct HaproxyBackend {
   #[serde(rename = "req_tot")]
   #[serde(deserialize_with = "deserialize_null_default")]
   pub requests: f64,
+  #[serde(rename = "mode")]
+  pub proxy_mode: String,
+  #[serde(rename = "act")]
+  pub active_servers: i64,
+  #[serde(rename = "bck")]
+  pub backup_servers: i64,
+  #[serde(rename = "scur")]
+  pub sessions: i64,
 
   #[serde(skip)]
   pub servers: Vec<HaproxyServer>,
@@ -87,6 +95,8 @@ pub struct HaproxyServer {
   #[serde(rename = "pxname")]
   pub backend_name: Option<String>,
   pub status: String,
+  #[serde(rename = "check_status")]
+  pub status_code: String,
   #[serde(rename = "req_tot")]
   #[serde(deserialize_with = "deserialize_null_default")]
   pub requests: f64,
