@@ -6,7 +6,7 @@ use crate::{
   action::{Action, TypingMode},
   components::{fps::FpsCounter, items::Items, menu::Menu, status::Status, charts, Component},
   config::Config,
-  tui::{Event, Frame},
+  tui::{Event, Frame}, mode::Mode,
 };
 
 pub struct GraphLayout {
@@ -109,8 +109,8 @@ impl Component for GraphLayout {
 
   fn handle_key_events(&mut self, typing_mode: TypingMode, key: KeyEvent) -> Result<Option<Action>> {
     // hack because i don't bother with fixing this in app.rs
-    if key.code == KeyCode::Char('q') {
-      return Ok(Some(Action::Quit));
+    if key.code == KeyCode::Char('q') || key.code == KeyCode::Esc {
+      return Ok(Some(Action::SwitchMode(Mode::Home)));
     }
 
     let mut actions: Vec<Action> = Vec::new();
