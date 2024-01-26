@@ -22,6 +22,10 @@ use crate::{
   utils::{initialize_logging, initialize_panic_handler, version},
 };
 
+#[cfg(feature = "dhat-heap")]
+#[global_allocator]
+static ALLOC: dhat::Alloc = dhat::Alloc;
+
 async fn tokio_main() -> Result<()> {
   initialize_logging()?;
 
@@ -36,6 +40,9 @@ async fn tokio_main() -> Result<()> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+#[cfg(feature = "dhat-heap")]
+let _profiler = dhat::Profiler::new_heap();
+
   if let Err(e) = tokio_main().await {
     eprintln!("{} error: Something went wrong", env!("CARGO_PKG_NAME"));
     Err(e)
