@@ -41,6 +41,9 @@ impl Items<'_> {
   }
 
   fn update_rows(&mut self, data: HaproxyMetrics) {
+    use std::time::Instant;
+    let now = Instant::now();
+
     let mut rows = Vec::new();
     let mut row_lookup: HashMap<Row, HaproxyBackend> = HashMap::new();
 
@@ -130,6 +133,9 @@ impl Items<'_> {
 
     self.row_lookup = row_lookup;
     self.rows = rows;
+
+    let elapsed = now.elapsed();
+    log::debug!("Update rows took: {:?}", elapsed);
   }
 }
 

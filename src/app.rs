@@ -72,7 +72,10 @@ impl App {
     });
 
     loop {
+      use std::time::Instant;
+      let now = Instant::now();
       if let Some(mut e) = tui.next().await {
+
         match e {
           tui::Event::Quit => action_tx.send(Action::Quit)?,
           tui::Event::Tick => action_tx.send(Action::Tick)?,
@@ -108,7 +111,7 @@ impl App {
 
       while let Ok(action) = action_rx.try_recv() {
         if action != Action::Tick && action != Action::Render {
-          log::debug!("{action:?}");
+          log::trace!("{action:?}");
         }
         match action.clone() {
           Action::MoveUp => {
@@ -177,6 +180,9 @@ impl App {
         tui.stop()?;
         break;
       }
+
+      let elapsed = now.elapsed();
+      log::debug!("Main loop matching took: {:?}", elapsed);
     }
     tui.exit()?;
     Ok(())
