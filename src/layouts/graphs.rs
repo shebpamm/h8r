@@ -4,7 +4,7 @@ use ratatui::layout::{Constraint, Direction, Layout, Rect, Size};
 
 use crate::{
   action::{Action, TypingMode},
-  components::{fps::FpsCounter, items::Items, menu::Menu, status::Status, charts, Component},
+  components::{fps::FpsCounter, items::Items, menu::Menu, status::Status, Component},
   config::Config,
   tui::{Event, Frame}, mode::Mode,
 };
@@ -19,7 +19,6 @@ impl GraphLayout {
   pub fn new() -> Self {
     let mut components: Vec<Box<dyn Component>> = Vec::new();
     components.push(Box::new(Status::new()));
-    components.push(Box::new(charts::HTTPErrorChart::new()));
     Self {
       components,
       action_handler: None,

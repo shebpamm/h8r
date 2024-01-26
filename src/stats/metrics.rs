@@ -124,7 +124,6 @@ pub struct InstantHaproxyMetrics {
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Default)]
 pub struct HaproxyMetrics {
   pub instant: Option<InstantHaproxyMetrics>,
-  pub history: Vec<InstantHaproxyMetrics>,
 }
 
 impl HaproxyMetrics {
@@ -163,8 +162,6 @@ impl HaproxyMetrics {
       data: InstantHaproxyMetricData { raw: data, frontends, backends, servers },
       time: Local::now(),
     });
-
-    self.history.push(self.instant.clone().unwrap());
 
     Ok(())
   }
