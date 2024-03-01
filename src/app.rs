@@ -15,7 +15,7 @@ use crate::{
   layouts::home::HomeLayout,
   mode::Mode,
   stats::{data::HaproxyStat, metrics::HaproxyMetrics, socket::Socket},
-  tui,
+  tui, settings::Settings,
 };
 
 use tokio::task;
@@ -37,6 +37,7 @@ impl App {
   pub fn new(tick_rate: f64, frame_rate: f64) -> Result<Self> {
     let config = Config::new()?;
     let mode = Mode::Home;
+    let settings = Settings::default();
     let layout = Box::new(HomeLayout::new());
 
     Ok(Self {
