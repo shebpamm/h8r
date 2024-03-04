@@ -250,7 +250,7 @@ impl Component for Items<'_> {
               if let Some(tx) = &self.command_tx {
                 let name = data.name.clone().unwrap_or("".to_string());
 
-                tx.send(Action::SwitchMode(Mode::Graph))?;
+                tx.send(Action::SwitchMode(Mode::Info))?;
                 tx.send(Action::UseItem(name))?;
               }
             }

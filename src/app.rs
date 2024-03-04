@@ -11,7 +11,7 @@ use crate::{
   action::{Action, TypingMode},
   components::{fps::FpsCounter, items::Items, Component},
   config::Config,
-  layouts::graphs::GraphLayout,
+  layouts::info::InfoLayout,
   layouts::home::HomeLayout,
   mode::Mode,
   stats::{data::HaproxyStat, metrics::HaproxyMetrics, socket::Socket},
@@ -25,7 +25,7 @@ pub struct App {
   pub tick_rate: f64,
   pub frame_rate: f64,
   pub home: HomeLayout,
-  pub graph: GraphLayout,
+  pub graph: InfoLayout,
   pub should_quit: bool,
   pub should_suspend: bool,
   pub mode: Mode,
@@ -39,7 +39,7 @@ impl App {
     let config = Config::new()?;
     let mode = Mode::Home;
     let home = HomeLayout::new();
-    let graph = GraphLayout::new();
+    let graph = InfoLayout::new();
 
     Ok(Self {
       tick_rate,
@@ -199,7 +199,7 @@ impl App {
   fn get_layout(&mut self) -> &mut dyn Component {
     match self.mode {
       Mode::Home => &mut self.home,
-      Mode::Graph => &mut self.graph
+      Mode::Info => &mut self.graph
     }
   }
 }

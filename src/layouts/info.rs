@@ -9,13 +9,13 @@ use crate::{
   tui::{Event, Frame}, mode::Mode,
 };
 
-pub struct GraphLayout {
+pub struct InfoLayout {
   pub components: Vec<Box<dyn Component>>,
   pub layout: Layout,
   action_handler: Option<tokio::sync::mpsc::UnboundedSender<Action>>,
 }
 
-impl GraphLayout {
+impl InfoLayout {
   pub fn new() -> Self {
     let mut components: Vec<Box<dyn Component>> = Vec::new();
     components.push(Box::new(Status::new()));
@@ -30,7 +30,7 @@ impl GraphLayout {
   }
 }
 
-impl Component for GraphLayout {
+impl Component for InfoLayout {
   fn init(&mut self, area: Rect) -> Result<()> {
     let layout = self.layout.split(area);
     // Give each element a slice of the screen

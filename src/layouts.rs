@@ -1,2 +1,2 @@
-pub mod graphs;
+pub mod info;
 pub mod home;
