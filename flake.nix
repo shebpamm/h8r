@@ -18,15 +18,36 @@
       packages = forAllSystems (system:
         let
           pkgs = nixpkgsFor.${system}.pkgsStatic;
-        in {
-          default = pkgs.rustPlatform.buildRustPackage rec {
-            pname = "rust-musl-hello";
-            version = "0.1.0";
+          pkgs-full = nixpkgsFor.${system};
+        in rec {
+          default = pkgs.rustPlatform.buildRustPackage {
+            pname = "h8r";
+            version = "1.0.0";
 
             src = ./.;
             cargoLock = {
               lockFile = ./Cargo.lock;
             };
+          };
+          deb = pkgs.stdenv.mkDerivation {
+            name = "h8r";
+            phases = [ "installPhase" ];
+            installPhase = ''
+              mkdir -p ./dpkg/usr/bin
+              mkdir -p $out
+              cp ${default}/bin/h8r ./dpkg/usr/bin
+
+              mkdir -p ./dpkg/DEBIAN
+              cat > ./dpkg/DEBIAN/control <<EOF
+Package: h8r
+Version: ${default.version}
+Architecture: amd64
+Maintainer: shebpamm
+Description: h8r
+EOF
+              ${pkgs-full.dpkg}/bin/dpkg-deb --build ./dpkg
+              mv ./dpkg.deb $out/h8r.deb
+            '';
           };
         });
 
