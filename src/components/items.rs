@@ -229,8 +229,10 @@ impl Component for Items<'_> {
                     if let Some(data) = &self.row_lookup.get(row) {
                         if self.sticky_backends.contains(&data.name.clone().unwrap_or("".to_string())) {
                             self.sticky_backends.remove(&data.name.clone().unwrap_or("".to_string()));
+                            self.update_rows(self.metrics.clone());
                         } else {
                             self.sticky_backends.insert(data.name.clone().unwrap_or("".to_string()));
+                            self.update_rows(self.metrics.clone());
                         }
                     }
                 }
