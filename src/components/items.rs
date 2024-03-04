@@ -157,7 +157,10 @@ impl Items<'_> {
 impl Component for Items<'_> {
   fn init(&mut self, size: Rect) -> Result<()> {
     self.rows = Vec::new();
-    self.state.select(Some(0));
+    if self.state.selected().is_none() {
+        self.state.select(Some(0));
+    }
+    self.update_rows(self.metrics.clone());
     Ok(())
   }
 
