@@ -24,7 +24,8 @@ pub struct App {
   pub config: Config,
   pub tick_rate: f64,
   pub frame_rate: f64,
-  pub layout: Box<dyn Component>,
+  pub home: HomeLayout,
+  pub graph: GraphLayout,
   pub should_quit: bool,
   pub should_suspend: bool,
   pub mode: Mode,
@@ -37,12 +38,14 @@ impl App {
   pub fn new(tick_rate: f64, frame_rate: f64) -> Result<Self> {
     let config = Config::new()?;
     let mode = Mode::Home;
-    let layout = Box::new(HomeLayout::new());
+    let home = HomeLayout::new();
+    let graph = GraphLayout::new();
 
     Ok(Self {
       tick_rate,
       frame_rate,
-      layout,
+      home,
+      graph,
       should_quit: false,
       should_suspend: false,
       config,
@@ -60,9 +63,13 @@ impl App {
     // tui.mouse(true);
     tui.enter()?;
 
-    self.layout.register_action_handler(action_tx.clone())?;
-    self.layout.register_config_handler(self.config.clone())?;
-    self.layout.init(tui.size()?)?;
+    let config = self.config.clone();
+
+    let layout = self.get_layout();
+
+    layout.register_action_handler(action_tx.clone())?;
+    layout.register_config_handler(config)?;
+    layout.init(tui.size()?)?;
 
     let mut socket = Socket::new(self.config.config._socket_path.clone())?;
     let socket_tx = action_tx.clone();
@@ -104,7 +111,7 @@ impl App {
           },
           _ => {},
         }
-        if let Some(action) = self.layout.handle_events(Some(e.clone()))? {
+        if let Some(action) = self.get_layout().handle_events(Some(e.clone()))? {
           action_tx.send(action)?;
         }
       }
@@ -116,13 +123,13 @@ impl App {
         match action.clone() {
           Action::MoveUp => {
             match self.typing_mode {
-              TypingMode::Navigation => self.layout.move_up()?,
+              TypingMode::Navigation => self.get_layout().move_up()?,
               _ => None,
             };
           },
           Action::MoveDown => {
             match self.typing_mode {
-              TypingMode::Navigation => self.layout.move_down()?,
+              TypingMode::Navigation => self.get_layout().move_down()?,
               _ => None,
             };
           },
@@ -139,7 +146,7 @@ impl App {
           Action::Resize(w, h) => {
             tui.resize(Rect::new(0, 0, w, h))?;
             tui.draw(|f| {
-              let r = self.layout.draw(f, f.size());
+              let r = self.get_layout().draw(f, f.size());
               if let Err(e) = r {
                 action_tx.send(Action::Error(format!("Failed to draw: {:?}", e))).unwrap();
               }
@@ -147,7 +154,7 @@ impl App {
           },
           Action::Render => {
             tui.draw(|f| {
-              let r = self.layout.draw(f, f.size());
+              let r = self.get_layout().draw(f, f.size());
               if let Err(e) = r {
                 action_tx.send(Action::Error(format!("Failed to draw: {:?}", e))).unwrap();
               }
@@ -158,15 +165,16 @@ impl App {
           },
           Action::SwitchMode(mode) => {
             self.mode = mode;
-            self.layout = self.get_layout();
 
-            self.layout.register_action_handler(action_tx.clone())?;
-            self.layout.register_config_handler(self.config.clone())?;
-            self.layout.init(tui.size()?)?;
+            let config = self.config.clone();
+
+            self.get_layout().register_action_handler(action_tx.clone())?;
+            self.get_layout().register_config_handler(config)?;
+            self.get_layout().init(tui.size()?)?;
           },
           _ => {},
         }
-        if let Some(action) = self.layout.update(action.clone())? {
+        if let Some(action) = self.get_layout().update(action.clone())? {
           action_tx.send(action)?
         };
       }
@@ -188,10 +196,10 @@ impl App {
     Ok(())
   }
 
-  fn get_layout(&self) -> Box<dyn Component> {
+  fn get_layout(&mut self) -> &mut dyn Component {
     match self.mode {
-      Mode::Home => Box::new(HomeLayout::new()),
-      Mode::Graph => Box::new(GraphLayout::new()),
+      Mode::Home => &mut self.home,
+      Mode::Graph => &mut self.graph
     }
   }
 }
