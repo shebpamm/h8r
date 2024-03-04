@@ -36,6 +36,7 @@ pub enum Action {
   Help,
   MoveUp,
   MoveDown,
+  Sticky,
   UpdateStats(Vec<HaproxyStat>),
   MetricUpdate(HaproxyMetrics),
   SelectResource(ResourceType),

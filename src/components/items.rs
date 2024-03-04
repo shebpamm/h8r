@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use color_eyre::{eyre::Result, owo_colors::OwoColorize};
 use ratatui::{prelude::*, widgets::*};
 use std::collections::HashMap;
@@ -23,6 +24,7 @@ pub struct Items<'a> {
   row_lookup: HashMap<Row<'a>, HaproxyBackend>,
   resource: ResourceType,
   filter: Option<String>,
+  sticky_backends: HashSet<String>,
 }
 
 impl Items<'_> {
@@ -37,6 +39,7 @@ impl Items<'_> {
       row_lookup: HashMap::new(),
       resource: ResourceType::default(),
       filter: None,
+      sticky_backends: HashSet::new(),
     }
   }
 
@@ -46,6 +49,14 @@ impl Items<'_> {
 
     let mut rows = Vec::new();
     let mut row_lookup: HashMap<Row, HaproxyBackend> = HashMap::new();
+
+    fn format_backend_name(name: String, is_stickied: bool) -> Span<'static> {
+      if is_stickied {
+        format!("{} (sticky)", name).cyan().bold()
+      } else {
+        name.bold()
+      }
+    }
 
     match (self.resource, data.instant) {
       (ResourceType::Frontend, Some(instant)) => {
@@ -68,13 +79,15 @@ impl Items<'_> {
         for backend in instant.data.backends {
           let name = backend.clone().name.unwrap_or("".to_string());
 
+          let is_stickied = self.sticky_backends.contains(&name);
+
           if let Some(filter) = &self.filter {
-            if !name.contains(filter) {
+            if !name.contains(filter) && !is_stickied {
               continue;
             }
           }
 
-          let row = Row::new(vec![name, backend.status.to_string(), backend.requests.to_string()]);
+          let row = Row::new(vec![format_backend_name(name, is_stickied), backend.status.to_string().white(), backend.requests.to_string().white()]);
           row_lookup.insert(row.clone(), backend);
           rows.push(row);
         }
@@ -99,14 +112,16 @@ impl Items<'_> {
         for backend in instant.data.backends {
           let backend_name = backend.clone().name.unwrap_or("".to_string());
 
+          let is_stickied = self.sticky_backends.contains(&backend_name);
+
           if let Some(filter) = &self.filter {
-            if !backend_name.contains(filter) {
+            if !backend_name.contains(filter) && !is_stickied {
               continue;
             }
           }
 
           let backend_row = Row::new(vec![
-            format!("{}", backend_name).bold(),
+            format_backend_name(backend_name, is_stickied),
             "Backend".to_string().bold(),
             backend.status.to_string().bold(),
             "".to_string().bold(),
@@ -204,6 +219,26 @@ impl Component for Items<'_> {
       Action::Filter(filter_string) => {
         self.filter = Some(filter_string);
         self.state.select(Some(0));
+        Ok(None)
+      },
+      Action::Sticky => {
+        match self.state.selected() {
+            Some(selection) => {
+                if let Some(row) = self.rows.get(selection) {
+                    if let Some(data) = &self.row_lookup.get(row) {
+                        if self.sticky_backends.contains(&data.name.clone().unwrap_or("".to_string())) {
+                            self.sticky_backends.remove(&data.name.clone().unwrap_or("".to_string()));
+                        } else {
+                            self.sticky_backends.insert(data.name.clone().unwrap_or("".to_string()));
+                        }
+                    }
+                }
+            },
+            None => {
+                log::info!("No selection");
+            },
+        }
+         
         Ok(None)
       },
       Action::SelectItem => {
