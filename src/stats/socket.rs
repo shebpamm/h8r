@@ -43,6 +43,9 @@ impl Socket {
       // file.write_all(resp.as_bytes())?;
 
       let stats = HaproxyStat::parse_csv(&resp)?;
+      if action_tx.is_closed() {
+        return Ok(());
+      }
       action_tx.send(Action::UpdateStats(stats)).unwrap();
 
       break;
