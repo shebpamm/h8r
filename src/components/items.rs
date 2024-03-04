@@ -219,6 +219,7 @@ impl Component for Items<'_> {
       Action::Filter(filter_string) => {
         self.filter = Some(filter_string);
         self.state.select(Some(0));
+        self.update_rows(self.metrics.clone());
         Ok(None)
       },
       Action::Sticky => {
