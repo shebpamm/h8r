@@ -129,14 +129,16 @@ impl Items<'_> {
           ]);
           row_lookup.insert(backend_row.clone(), backend.clone());
           rows.push(backend_row);
-          for server in backend.servers {
-            rows.push(Row::new(vec![
-              format!("└ {}", server.name.unwrap_or("".to_string())),
+          for server in &backend.servers {
+            let server_row = Row::new(vec![
+              format!("└ {}", server.name.clone().unwrap_or("".to_string())),
               "Server".to_string(),
               server.status.to_string(),
               server.status_code.to_string(),
               server.requests.to_string(),
-            ]));
+            ]);
+            row_lookup.insert(server_row.clone(), backend.clone());
+            rows.push(server_row);
           }
         }
       },
