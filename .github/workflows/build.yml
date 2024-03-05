@@ -1,0 +1,22 @@
+name: Build
+on:
+  push:
+    branches:
+      - 'main'
+jobs:
+  build:
+    name: Build cargo package
+    runs-on: ubuntu-latest
+    env:
+      DOCKER_BUILDKIT: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v22
+      - name: Build cargo project
+        run: |
+          nix build
+        shell: bash
+      - uses: actions/upload-artifact@v2
+        with:
+          name: cargo-build
+          path: result
