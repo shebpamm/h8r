@@ -11,11 +11,9 @@ jobs:
       DOCKER_BUILDKIT: 1
     steps:
       - uses: actions/checkout@v4
-      - uses: cachix/install-nix-action@v22
-      - name: Build cargo project
-        run: |
-          nix build
-        shell: bash
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - run: nix build
       - uses: actions/upload-artifact@v2
         with:
           name: cargo-build
