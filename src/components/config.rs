@@ -30,7 +30,7 @@ impl ConfigView {
   fn find_config(&mut self) -> Result<()> {
     let process_path = format!("/proc/{}/cmdline", self.pid.unwrap());
     let process_cwd = format!("/proc/{}/cwd", self.pid.unwrap());
-    let process_cmdline = std::fs::read_to_string(process_path).unwrap();
+    let process_cmdline = std::fs::read_to_string(process_path)?;
     let process_cmdline = process_cmdline.split("\0").collect::<Vec<&str>>();
     // find -f flag
     let mut config_path = None;
@@ -44,7 +44,7 @@ impl ConfigView {
     if let Some(config_path) = config_path {
       let raw_path = Some(config_path.to_string());
       // Resolve the path based on cwd
-      let cwd = std::fs::read_link(process_cwd).unwrap();
+      let cwd = std::fs::read_link(process_cwd)?;
       let cwd = cwd.to_str().unwrap();
       let config_path = std::path::Path::new(cwd).join(config_path);
       let config_path = config_path.to_str().unwrap().to_string();
