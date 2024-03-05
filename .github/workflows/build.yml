@@ -5,7 +5,7 @@ on:
       - 'main'
 jobs:
   build:
-    name: Build cargo package
+    name: Build cargo package and deb file
     runs-on: ubuntu-latest
     env:
       DOCKER_BUILDKIT: 1
@@ -18,3 +18,9 @@ jobs:
         with:
           name: cargo-build
           path: result/bin/h8r
+
+      - run: nix build .#deb -o deb
+      - uses: actions/upload-artifact@v2
+        with:
+          name: debian
+          path: deb/h8r.deb
