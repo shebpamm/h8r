@@ -5,6 +5,8 @@ use std::collections::HashSet;
 use tokio::sync::mpsc::UnboundedSender;
 
 use super::{Component, Frame};
+use crate::stats::data::StatusType;
+use crate::stats::metrics::HaproxyFrontendStatus;
 use crate::{
   action::{Action, MovementMode},
   config::{Config, KeyBindings},
@@ -29,6 +31,7 @@ pub struct Items<'a> {
   rows: Vec<Row<'a>>,
   row_lookup: HashMap<Row<'a>, LookupType>,
   resource: ResourceType,
+  status_filter: StatusType,
   filter: Option<String>,
   sticky_backends: HashSet<String>,
 }
@@ -44,6 +47,7 @@ impl Items<'_> {
       rows: Vec::default(),
       row_lookup: HashMap::new(),
       resource: ResourceType::default(),
+      status_filter: StatusType::default(),
       filter: None,
       sticky_backends: HashSet::new(),
     }
@@ -64,6 +68,21 @@ impl Items<'_> {
       }
     }
 
+    fn parse_backend_status(status: &str) -> StatusType {
+      match status {
+        "UP" => StatusType::Healthy,
+        "DOWN" => StatusType::Failing,
+        _ => StatusType::Failing,
+      }
+    }
+
+    fn parse_frontend_status(status: &HaproxyFrontendStatus) -> StatusType {
+      match status {
+        HaproxyFrontendStatus::Open => StatusType::Healthy,
+        HaproxyFrontendStatus::Closed => StatusType::Failing,
+      }
+    }
+
     match (self.resource, data.instant) {
       (ResourceType::Frontend, Some(instant)) => {
         self.headers = vec!["".to_string(), "State".to_string(), "Requests".to_string()];
@@ -74,6 +93,10 @@ impl Items<'_> {
             if !name.contains(filter) {
               continue;
             }
+          }
+
+          if parse_frontend_status(&frontend.status) != self.status_filter {
+            continue;
           }
 
           let row = Row::new(vec![name, frontend.status.to_string(), frontend.requests.to_string()]);
@@ -91,6 +114,10 @@ impl Items<'_> {
             if !name.contains(filter) && !is_stickied {
               continue;
             }
+          }
+
+          if self.status_filter != StatusType::All && parse_backend_status(&backend.status) != self.status_filter {
+            continue;
           }
 
           let row = Row::new(vec![
@@ -129,6 +156,10 @@ impl Items<'_> {
             if !backend_name.contains(filter) && !is_stickied {
               continue;
             }
+          }
+
+          if self.status_filter != StatusType::All && parse_backend_status(&backend.status) != self.status_filter {
+            continue;
           }
 
           let backend_row = Row::new(vec![
@@ -282,6 +313,12 @@ impl Component for Items<'_> {
       },
       Action::SelectResource(resource) => {
         self.resource = resource;
+        self.state.select(Some(0));
+        self.update_rows(self.metrics.clone());
+        Ok(None)
+      },
+      Action::SelectStatus(resource) => {
+        self.status_filter = resource;
         self.state.select(Some(0));
         self.update_rows(self.metrics.clone());
         Ok(None)
