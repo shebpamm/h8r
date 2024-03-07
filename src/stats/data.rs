@@ -139,3 +139,11 @@ impl ResourceType {
     Self::Combined
   }
 }
+
+#[derive(Default, Debug, PartialEq, Clone, Copy, Display, Serialize, Deserialize)]
+pub enum StatusType {
+    #[default]
+    All,
+    Failing,
+    Healthy,
+}
