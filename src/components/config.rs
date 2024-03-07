@@ -85,17 +85,26 @@ impl ConfigView {
 
     self.haproxy_config = Some(content.lines().map(|line| line.to_string()).collect());
 
-    let lines = content
-      .split("\n")
-      .map(|line| {
-        let ranges = h.highlight_line(line, &ps).unwrap();
-        let escaped = as_24_bit_terminal_escaped(&ranges[..], true);
+    let is_inside_screen = std::env::var("TERM").unwrap_or_default().contains("screen");
 
-        escaped
-      })
-      .collect();
+    match is_inside_screen {
+      true => {
+        self.highlighted_config = self.haproxy_config.clone();
+      },
+      false => {
+        let lines = content
+          .split("\n")
+          .map(|line| {
+            let ranges = h.highlight_line(line, &ps).unwrap();
+            let escaped = as_24_bit_terminal_escaped(&ranges[..], true);
 
-    self.highlighted_config = Some(lines);
+            escaped
+          })
+          .collect();
+
+        self.highlighted_config = Some(lines);
+      },
+    }
 
     Ok(())
   }
