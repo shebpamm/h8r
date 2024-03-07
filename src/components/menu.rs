@@ -25,11 +25,7 @@ pub struct Menu<'a> {
 
 impl Menu<'_> {
   pub fn new() -> Self {
-    Self { resource: ResourceType::default(), 
-           status: StatusType::default(),
-           filter: TextArea::default(), 
-           focused: false 
-        }
+        Self::default()
   }
 }
 
