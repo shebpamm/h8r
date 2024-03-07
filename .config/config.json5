@@ -7,6 +7,8 @@
       "<Ctrl-z>": "Suspend", // Suspend the application
       "<j>": "MoveDown", // Move down
       "<k>": "MoveUp", // Move up
+      "<ctrl-j>": "MoveSectionDown", // Move a whole section down
+      "<ctrl-k>": "MoveSectionUp", // Move a whole section up
       "<Up>": "MoveUp", // Move up
       "<Down>": "MoveDown", // Move down
       "<Enter>": "SelectItem", // Move down

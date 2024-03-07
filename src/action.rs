@@ -12,15 +12,18 @@ use tokio::sync::RwLock;
 
 use crate::stats::data::{HaproxyStat, ResourceType};
 
-#[derive(Debug, Clone, PartialEq, Serialize, Display, Deserialize)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Serialize, Display, Deserialize)]
 pub enum TypingMode {
+  #[default]
   Navigation,
   Filter,
 }
-impl TypingMode {
-  pub(crate) fn default() -> TypingMode {
-    Self::Navigation
-  }
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Display, Deserialize)]
+pub enum MovementMode {
+    #[default]
+    Single,
+    Section,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Display, Deserialize)]
@@ -36,6 +39,8 @@ pub enum Action {
   Help,
   MoveUp,
   MoveDown,
+  MoveSectionUp,
+  MoveSectionDown,
   Sticky,
   UpdateStats(Vec<HaproxyStat>),
   MetricUpdate(HaproxyMetrics),

@@ -6,3 +6,4 @@ pub enum Mode {
   Home,
   Info,
 }
+

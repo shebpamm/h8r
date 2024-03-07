@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
 use crate::{
-  action::{Action, TypingMode},
+  action::{Action, TypingMode, MovementMode},
   components::{fps::FpsCounter, items::Items, Component},
   config::Config,
   layouts::info::InfoLayout,
@@ -123,13 +123,25 @@ impl App {
         match action.clone() {
           Action::MoveUp => {
             match self.typing_mode {
-              TypingMode::Navigation => self.get_layout().move_up()?,
+              TypingMode::Navigation => self.get_layout().move_up(MovementMode::Single)?,
               _ => None,
             };
           },
           Action::MoveDown => {
             match self.typing_mode {
-              TypingMode::Navigation => self.get_layout().move_down()?,
+              TypingMode::Navigation => self.get_layout().move_down(MovementMode::Single)?,
+              _ => None,
+            };
+          },
+          Action::MoveSectionUp => {
+            match self.typing_mode {
+              TypingMode::Navigation => self.get_layout().move_up(MovementMode::Section)?,
+              _ => None,
+            };
+          },
+          Action::MoveSectionDown => {
+            match self.typing_mode {
+              TypingMode::Navigation => self.get_layout().move_down(MovementMode::Section)?,
               _ => None,
             };
           },

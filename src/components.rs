@@ -4,7 +4,7 @@ use ratatui::layout::Rect;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
-  action::{Action, TypingMode},
+  action::{Action, TypingMode, MovementMode},
   config::Config,
   tui::{Event, Frame},
 };
@@ -131,7 +131,7 @@ pub trait Component {
   ///
   /// * `Result<()>` - An Ok result or an error.
   #[allow(unused_variables)]
-  fn move_up(&mut self) -> Result<Option<Action>> {
+  fn move_up(&mut self, mode: MovementMode) -> Result<Option<Action>> {
     Ok(None)
   }
   /// Navigate downwards in the component.
@@ -140,7 +140,7 @@ pub trait Component {
   ///
   /// * `Result<()>` - An Ok result or an error.
   #[allow(unused_variables)]
-  fn move_down(&mut self) -> Result<Option<Action>> {
+  fn move_down(&mut self, mode: MovementMode) -> Result<Option<Action>> {
     Ok(None)
   }
 }

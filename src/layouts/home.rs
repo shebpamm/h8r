@@ -3,7 +3,7 @@ use crossterm::event::KeyEvent;
 use ratatui::layout::{Constraint, Direction, Layout, Rect, Size};
 
 use crate::{
-  action::{Action, TypingMode},
+  action::{Action, TypingMode, MovementMode},
   components::{fps::FpsCounter, items::Items, menu::Menu, Component},
   config::Config,
   tui::{Event, Frame},
@@ -68,16 +68,16 @@ impl Component for HomeLayout {
     Ok(())
   }
 
-  fn move_down(&mut self) -> Result<Option<Action>> {
+  fn move_down(&mut self, mode: MovementMode) -> Result<Option<Action>> {
     for component in self.components.iter_mut() {
-      component.move_down()?;
+      component.move_down(mode.clone())?;
     }
     Ok(None)
   }
 
-  fn move_up(&mut self) -> Result<Option<Action>> {
+  fn move_up(&mut self, mode: MovementMode) -> Result<Option<Action>> {
     for component in self.components.iter_mut() {
-      component.move_up()?;
+      component.move_up(mode.clone())?;
     }
     Ok(None)
   }

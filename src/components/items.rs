@@ -1,18 +1,24 @@
-use std::collections::HashSet;
 use color_eyre::{eyre::Result, owo_colors::OwoColorize};
 use ratatui::{prelude::*, widgets::*};
 use std::collections::HashMap;
+use std::collections::HashSet;
 use tokio::sync::mpsc::UnboundedSender;
 
 use super::{Component, Frame};
 use crate::{
-  action::Action,
+  action::{Action, MovementMode},
   config::{Config, KeyBindings},
+  mode::Mode,
   stats::{
     data::{HaproxyStat, ResourceType},
     metrics::{HaproxyBackend, HaproxyMetrics},
-  }, mode::Mode,
+  },
 };
+
+enum LookupType {
+  Backend(HaproxyBackend),
+  Server(HaproxyBackend),
+}
 
 pub struct Items<'a> {
   command_tx: Option<UnboundedSender<Action>>,
@@ -21,7 +27,7 @@ pub struct Items<'a> {
   metrics: HaproxyMetrics,
   headers: Vec<String>,
   rows: Vec<Row<'a>>,
-  row_lookup: HashMap<Row<'a>, HaproxyBackend>,
+  row_lookup: HashMap<Row<'a>, LookupType>,
   resource: ResourceType,
   filter: Option<String>,
   sticky_backends: HashSet<String>,
@@ -48,7 +54,7 @@ impl Items<'_> {
     let now = Instant::now();
 
     let mut rows = Vec::new();
-    let mut row_lookup: HashMap<Row, HaproxyBackend> = HashMap::new();
+    let mut row_lookup: HashMap<Row, LookupType> = HashMap::new();
 
     fn format_backend_name(name: String, is_stickied: bool) -> Span<'static> {
       if is_stickied {
@@ -87,8 +93,12 @@ impl Items<'_> {
             }
           }
 
-          let row = Row::new(vec![format_backend_name(name, is_stickied), backend.status.to_string().white(), backend.requests.to_string().white()]);
-          row_lookup.insert(row.clone(), backend);
+          let row = Row::new(vec![
+            format_backend_name(name, is_stickied),
+            backend.status.to_string().white(),
+            backend.requests.to_string().white(),
+          ]);
+          row_lookup.insert(row.clone(), LookupType::Backend(backend));
           rows.push(row);
         }
       },
@@ -108,7 +118,8 @@ impl Items<'_> {
         }
       },
       (ResourceType::Combined, Some(instant)) => {
-        self.headers = vec!["".to_string(), "Type".to_string(), "State".to_string(), "Code".to_string(), "Requests".to_string()];
+        self.headers =
+          vec!["".to_string(), "Type".to_string(), "State".to_string(), "Code".to_string(), "Requests".to_string()];
         for backend in instant.data.backends {
           let backend_name = backend.clone().name.unwrap_or("".to_string());
 
@@ -127,7 +138,7 @@ impl Items<'_> {
             "".to_string().bold(),
             backend.requests.to_string().bold(),
           ]);
-          row_lookup.insert(backend_row.clone(), backend.clone());
+          row_lookup.insert(backend_row.clone(), LookupType::Backend(backend.clone()));
           rows.push(backend_row);
           for server in &backend.servers {
             let server_row = Row::new(vec![
@@ -137,7 +148,7 @@ impl Items<'_> {
               server.status_code.to_string(),
               server.requests.to_string(),
             ]);
-            row_lookup.insert(server_row.clone(), backend.clone());
+            row_lookup.insert(server_row.clone(), LookupType::Server(backend.clone()));
             rows.push(server_row);
           }
         }
@@ -154,13 +165,59 @@ impl Items<'_> {
     let elapsed = now.elapsed();
     log::debug!("Update rows took: {:?}", elapsed);
   }
+
+  fn find_next_row(&self) -> usize {
+    (self.state.selected().unwrap_or(1) + 1) % self.rows.len()
+  }
+
+  fn find_next_section(&mut self) -> usize {
+    let mut next = self.find_next_row();
+    while next < self.rows.len() {
+      if let Some(row) = self.rows.get(next) {
+        if let Some(data) = &self.row_lookup.get(row) {
+          if let LookupType::Backend(_) = data {
+            break;
+          }
+        }
+      }
+      self.state.select(Some(next));
+      next = self.find_next_row();
+    }
+    next
+  }
+
+  fn find_prev_row(&self) -> usize {
+    let selection = if self.state.selected().unwrap_or(1) == 0 {
+      self.rows.len() - 1
+    } else {
+      self.state.selected().unwrap_or(1) - 1
+    };
+
+    selection
+  }
+
+  fn find_prev_section(&mut self) -> usize {
+    let mut prev = self.find_prev_row();
+    while prev > 0 {
+      if let Some(row) = self.rows.get(prev) {
+        if let Some(data) = &self.row_lookup.get(row) {
+          if let LookupType::Backend(_) = data {
+            break;
+          }
+        }
+      }
+      self.state.select(Some(prev));
+      prev = self.find_prev_row();
+    }
+    prev
+  }
 }
 
 impl Component for Items<'_> {
   fn init(&mut self, size: Rect) -> Result<()> {
     self.rows = Vec::new();
     if self.state.selected().is_none() {
-        self.state.select(Some(0));
+      self.state.select(Some(0));
     }
     self.update_rows(self.metrics.clone());
     Ok(())
@@ -176,12 +233,18 @@ impl Component for Items<'_> {
     Ok(())
   }
 
-  fn move_down(&mut self) -> Result<Option<Action>> {
+  fn move_down(&mut self, mode: MovementMode) -> Result<Option<Action>> {
     if self.rows.is_empty() {
       return Ok(None);
     }
 
-    let selection = (self.state.selected().unwrap_or(1) + 1) % self.rows.len();
+    let selection = match mode {
+      MovementMode::Single => self.find_next_row(),
+      MovementMode::Section => match self.resource {
+        ResourceType::Combined => self.find_next_section(),
+        _ => self.find_next_row(),
+      },
+    };
 
     self.state.select(Some(selection));
 
@@ -190,15 +253,17 @@ impl Component for Items<'_> {
     Ok(None)
   }
 
-  fn move_up(&mut self) -> Result<Option<Action>> {
+  fn move_up(&mut self, mode: MovementMode) -> Result<Option<Action>> {
     if self.rows.is_empty() {
       return Ok(None);
     }
 
-    let selection = if self.state.selected().unwrap_or(1) == 0 {
-      self.rows.len() - 1
-    } else {
-      self.state.selected().unwrap_or(1) - 1
+    let selection = match mode {
+      MovementMode::Single => self.find_prev_row(),
+      MovementMode::Section => match self.resource {
+        ResourceType::Combined => self.find_prev_section(),
+        _ => self.find_prev_row(),
+      },
     };
 
     self.state.select(Some(selection));
@@ -229,24 +294,29 @@ impl Component for Items<'_> {
       },
       Action::Sticky => {
         match self.state.selected() {
-            Some(selection) => {
-                if let Some(row) = self.rows.get(selection) {
-                    if let Some(data) = &self.row_lookup.get(row) {
-                        if self.sticky_backends.contains(&data.name.clone().unwrap_or("".to_string())) {
-                            self.sticky_backends.remove(&data.name.clone().unwrap_or("".to_string()));
-                            self.update_rows(self.metrics.clone());
-                        } else {
-                            self.sticky_backends.insert(data.name.clone().unwrap_or("".to_string()));
-                            self.update_rows(self.metrics.clone());
-                        }
-                    }
+          Some(selection) => {
+            if let Some(row) = self.rows.get(selection) {
+              if let Some(data) = &self.row_lookup.get(row) {
+                let data = match data {
+                  LookupType::Backend(backend) => backend,
+                  LookupType::Server(server) => server,
+                };
+
+                if self.sticky_backends.contains(&data.name.clone().unwrap_or("".to_string())) {
+                  self.sticky_backends.remove(&data.name.clone().unwrap_or("".to_string()));
+                  self.update_rows(self.metrics.clone());
+                } else {
+                  self.sticky_backends.insert(data.name.clone().unwrap_or("".to_string()));
+                  self.update_rows(self.metrics.clone());
                 }
-            },
-            None => {
-                log::info!("No selection");
-            },
+              }
+            }
+          },
+          None => {
+            log::info!("No selection");
+          },
         }
-         
+
         Ok(None)
       },
       Action::SelectItem => {
@@ -255,6 +325,11 @@ impl Component for Items<'_> {
           if let Some(row) = self.rows.get(selection) {
             if let Some(data) = &self.row_lookup.get(row) {
               if let Some(tx) = &self.command_tx {
+                let data = match data {
+                  LookupType::Backend(backend) => backend,
+                  LookupType::Server(server) => server,
+                };
+
                 let name = data.name.clone().unwrap_or("".to_string());
 
                 tx.send(Action::SwitchMode(Mode::Info))?;
