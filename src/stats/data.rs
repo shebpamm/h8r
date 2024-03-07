@@ -127,17 +127,13 @@ impl HaproxyStat {
   }
 }
 
-#[derive(Debug, PartialEq, Clone, Copy, Display, Serialize, Deserialize)]
+#[derive(Default, Debug, PartialEq, Clone, Copy, Display, Serialize, Deserialize)]
 pub enum ResourceType {
   Frontend,
   Backend,
   Server,
+  #[default]
   Combined,
-}
-impl ResourceType {
-  pub(crate) fn default() -> ResourceType {
-    Self::Combined
-  }
 }
 
 #[derive(Default, Debug, PartialEq, Clone, Copy, Display, Serialize, Deserialize)]

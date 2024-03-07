@@ -15,18 +15,12 @@ use crate::{
 
 use super::Component;
 
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct Menu<'a> {
   resource: ResourceType,
   status: StatusType,
   filter: TextArea<'a>,
   focused: bool,
-}
-
-impl Default for Menu<'_> {
-  fn default() -> Self {
-    Self::new()
-  }
 }
 
 impl Menu<'_> {
