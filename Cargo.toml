@@ -1,6 +1,6 @@
 [package]
 name = "h8r"
-version = "1.1.0"
+version = "1.1.1"
 edition = "2021"
 description = "k9s but for haproxy"
 repository = "https://github.com/shebpamm/h8r"

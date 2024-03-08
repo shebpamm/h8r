@@ -22,7 +22,7 @@
         in rec {
           default = pkgs.rustPlatform.buildRustPackage {
             pname = "h8r";
-            version = "1.1.0";
+            version = "1.1.1";
 
             src = ./.;
             cargoLock = {
