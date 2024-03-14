@@ -6,6 +6,7 @@ description = "k9s but for haproxy"
 repository = "https://github.com/shebpamm/h8r"
 authors = ["Erik Karsten <erik@opcode.xyz>"]
 build = "build.rs"
+license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
