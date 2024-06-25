@@ -258,17 +258,21 @@ impl Component for ConfigView {
       },
     };
 
-    let code_layout = Layout::default()
-      .direction(Direction::Vertical)
-      .constraints(vec![Constraint::Ratio(1, 3), Constraint::Ratio(1, 3), Constraint::Ratio(1, 3)])
-      .split(rect);
-
-    let frontend_frame = code_layout[0];
-    let acl_frame = code_layout[1];
-    let backend_frame = code_layout[2];
-
     match content {
       HaproxyDisplay::Lines(snippets) => {
+        let frontend_size = snippets.frontend.len();
+        let acl_size = snippets.acl.len();
+
+        let code_layout = Layout::default()
+          .direction(Direction::Vertical)
+          .constraints(vec![Constraint::Length(frontend_size as u16 + 2), Constraint::Length(acl_size as u16 + 2), Constraint::Min(0)])
+          .split(rect);
+
+        let frontend_frame = code_layout[0];
+        let acl_frame = code_layout[1];
+        let backend_frame = code_layout[2];
+
+
         let frontend = Paragraph::new(snippets.frontend.join("\n").into_text()?)
           .block(Block::default().borders(Borders::ALL).title("Frontend"));
         f.render_widget(frontend, frontend_frame);
