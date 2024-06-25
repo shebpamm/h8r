@@ -5,6 +5,11 @@ use crate::config::Config;
 use crate::tui::Frame;
 use ansi_to_tui::IntoText;
 use color_eyre::eyre::{Error, Result};
+use ratatui::layout::Direction;
+use ratatui::layout::Constraint;
+use ratatui::layout::Layout;
+use ratatui::widgets::Block;
+use ratatui::widgets::Borders;
 use ratatui::widgets::Paragraph;
 use std::io::{Read, Write};
 use std::os::unix::net::UnixStream;
@@ -14,6 +19,17 @@ use syntect::parsing::{SyntaxDefinition, SyntaxSet, SyntaxSetBuilder};
 use syntect::util::as_24_bit_terminal_escaped;
 
 const HAPROXY_SYNTAX: &str = include_str!("../../.config/haproxy.sublime-syntax");
+
+struct HaproxyConfigSnippets {
+    frontend: Vec<String>,
+    backend: Vec<String>,
+    acl: Vec<String>,
+}
+
+enum HaproxyDisplay {
+    Lines(HaproxyConfigSnippets),
+    Error(String),
+}
 
 #[derive(Debug, Default)]
 pub struct ConfigView {
@@ -75,6 +91,7 @@ impl ConfigView {
       Err(_) => std::fs::read_to_string(&self.config_path.as_ref().unwrap())?,
     };
 
+
     let sd = SyntaxDefinition::load_from_str(HAPROXY_SYNTAX, false, None).unwrap();
     let mut ps_builder = SyntaxSetBuilder::new();
     ps_builder.add(sd);
@@ -87,24 +104,26 @@ impl ConfigView {
 
     let is_inside_screen = std::env::var("TERM").unwrap_or_default().contains("screen");
 
+
     match is_inside_screen {
       true => {
         self.highlighted_config = self.haproxy_config.clone();
       },
       false => {
-        let lines = content
-          .split("\n")
-          .map(|line| {
-            let ranges = h.highlight_line(line, &ps).unwrap();
-            let escaped = as_24_bit_terminal_escaped(&ranges[..], true);
+    let lines = content
+      .split("\n")
+      .map(|line| {
+        let ranges = h.highlight_line(line, &ps).unwrap();
+        let escaped = as_24_bit_terminal_escaped(&ranges[..], true);
 
-            escaped
-          })
-          .collect();
+        escaped
+      })
+      .collect();
 
-        self.highlighted_config = Some(lines);
+    self.highlighted_config = Some(lines);
       },
     }
+
 
     Ok(())
   }
@@ -162,14 +181,14 @@ impl Component for ConfigView {
         // <name>", we start collecting lines until we hit the next backend or the end of
         // the file. The lines added come from self.highlighted_config but comparisons happen in
         // self.haproxy_config
-        let mut lines = vec![];
+        let mut backend_lines = vec![];
 
         for i in 0..config.len() {
           let line = &config[i];
           if let Some(ref selected_backend) = self.selected_backend {
             if line.starts_with("backend") && line.contains(selected_backend) {
               backend = Some(selected_backend);
-              lines.push(self.highlighted_config.as_ref().unwrap()[i].clone());
+              backend_lines.push(self.highlighted_config.as_ref().unwrap()[i].clone());
               continue;
             }
           }
@@ -178,19 +197,96 @@ impl Component for ConfigView {
             if line.starts_with("backend") {
               break;
             }
-            lines.push(self.highlighted_config.as_ref().unwrap()[i].clone());
+            backend_lines.push(self.highlighted_config.as_ref().unwrap()[i].clone());
           }
         }
 
-        lines.join("\n").into_text()?
+        // find use_backend matching our backend
+        let mut use_backend = None;
+        let mut use_backend_highlighted = None;
+        for i in 0..config.len() {
+          let line = &config[i];
+          if line.contains("use_backend") {
+            if let Some(ref selected_backend) = self.selected_backend {
+              if line.contains(selected_backend) {
+                use_backend = Some(line.to_string());
+                use_backend_highlighted = Some(self.highlighted_config.as_ref().unwrap()[i].clone());
+                break;
+              }
+            }
+          }
+        }
+
+        // parse acls used in use_backend line
+        // example use_backend:
+        // use_backend backend if acl1 acl2
+        let mut acls = vec![];
+        if let Some(ref use_backend) = use_backend {
+          let parts: Vec<&str> = use_backend.split_whitespace().collect();
+          for i in 0..parts.len() {
+            if parts[i] == "if" {
+              for j in i+1..parts.len() {
+                acls.push(parts[j].to_string());
+              }
+              break;
+            }
+          }
+        }
+
+        // find acl lines matching our acls
+        let mut acl_lines = vec![];
+        for i in 0..config.len() {
+          let line = &config[i];
+          for acl in &acls {
+            if line.trim().starts_with(format!("acl {}", acl).as_str()) {
+              acl_lines.push(self.highlighted_config.as_ref().unwrap()[i].clone());
+            }
+          }
+        }
+
+        let snippets = HaproxyConfigSnippets {
+          frontend: vec!(use_backend_highlighted.unwrap_or("".to_string())),
+          backend: backend_lines,
+          acl: acl_lines,
+        };
+
+        HaproxyDisplay::Lines(snippets)
       },
       None => match self.haproxy_parse_error {
-        Some(ref e) => format!("Error: {}", e).into_text()?,
-        None => "Loading...".into_text()?,
+        Some(ref e) => HaproxyDisplay::Error(format!("Error: {}", e)),
+        None => HaproxyDisplay::Error("Loading...".to_string()),
       },
     };
-    let text = Paragraph::new(content);
-    f.render_widget(text, rect);
+
+    let code_layout = Layout::default()
+      .direction(Direction::Vertical)
+      .constraints(vec![Constraint::Ratio(1, 3), Constraint::Ratio(1, 3), Constraint::Ratio(1, 3)])
+      .split(rect);
+
+    let frontend_frame = code_layout[0];
+    let acl_frame = code_layout[1];
+    let backend_frame = code_layout[2];
+
+    match content {
+      HaproxyDisplay::Lines(snippets) => {
+        let frontend = Paragraph::new(snippets.frontend.join("\n").into_text()?)
+          .block(Block::default().borders(Borders::ALL).title("Frontend"));
+        f.render_widget(frontend, frontend_frame);
+
+        let acl = Paragraph::new(snippets.acl.join("\n").into_text()?)
+          .block(Block::default().borders(Borders::ALL).title("Acls"));
+        f.render_widget(acl, acl_frame);
+
+        let backend = Paragraph::new(snippets.backend.join("\n").into_text()?)
+          .block(Block::default().borders(Borders::ALL).title("Backend"));
+        f.render_widget(backend, backend_frame);
+      },
+      HaproxyDisplay::Error(ref e) => {
+        let error = Paragraph::new(e.clone())
+          .block(Block::default().borders(Borders::ALL).title("Error"));
+        f.render_widget(error, rect);
+      },
+    }
 
     Ok(())
   }
