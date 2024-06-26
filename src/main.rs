@@ -43,10 +43,20 @@ async fn main() -> Result<()> {
 #[cfg(feature = "dhat-heap")]
 let _profiler = dhat::Profiler::new_heap();
 
-  if let Err(e) = tokio_main().await {
-    eprintln!("{} error: Something went wrong", env!("CARGO_PKG_NAME"));
-    Err(e)
-  } else {
-    Ok(())
+  match tokio_main().await {
+    Ok(_) => Ok(()),
+    Err(e) => {
+      match  e.downcast_ref::<std::io::Error>() {
+        Some(os_err) if os_err.kind() == std::io::ErrorKind::PermissionDenied => {
+            eprintln!("{} error:", env!("CARGO_PKG_NAME"));
+            eprintln!("Try running with sudo or as the root user.");
+            Err(e)
+        }
+        _ => {
+          eprintln!("{} error:", env!("CARGO_PKG_NAME"));
+          Err(e)
+        }
+      }
+    }
   }
 }

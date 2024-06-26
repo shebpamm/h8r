@@ -74,9 +74,10 @@ impl App {
     let mut socket = Socket::new(self.config.config._socket_path.clone())?;
     let socket_tx = action_tx.clone();
 
-    task::spawn_blocking(move || {
-      socket.collect(socket_tx).unwrap();
-    });
+    task::spawn_blocking(move || -> Result<()> {
+      socket.collect(socket_tx)?;
+      Ok(())
+    }).await??;
 
     loop {
       use std::time::Instant;

@@ -46,7 +46,7 @@ impl Socket {
       if action_tx.is_closed() {
         return Ok(());
       }
-      action_tx.send(Action::UpdateStats(stats)).unwrap();
+      action_tx.send(Action::UpdateStats(stats))?;
 
       break;
     }
