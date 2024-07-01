@@ -21,8 +21,6 @@ pub struct AppConfig {
   pub _data_dir: PathBuf,
   #[serde(default)]
   pub _config_dir: PathBuf,
-  #[serde(default)]
-  pub _socket_path: String,
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -33,6 +31,8 @@ pub struct Config {
   pub keybindings: KeyBindings,
   #[serde(default)]
   pub styles: Styles,
+  #[serde(default)]
+  pub paths: Paths,
 }
 
 impl Config {
@@ -387,6 +387,28 @@ fn parse_color(s: &str) -> Option<Color> {
   } else {
     None
   }
+}
+
+#[derive(Deserialize, Clone, Debug, Deref, DerefMut)]
+pub struct Paths {
+    pub socket: String,
+}
+
+impl Default for Paths {
+    fn default() -> Self {
+        const SOCKET_PATHS: [&str; 2] = ["/var/run/haproxy/admin.sock", "/var/run/haproxy.sock"];
+        for path in SOCKET_PATHS.iter() {
+            if std::path::Path::new(path).exists() {
+                return Paths {
+                    socket: path.to_string(),
+                };
+            }
+        }
+
+        Paths {
+            socket: SOCKET_PATHS[0].to_string(),
+        }
+    }
 }
 
 #[cfg(test)]

@@ -71,7 +71,7 @@ impl App {
     layout.register_config_handler(config)?;
     layout.init(tui.size()?)?;
 
-    let mut socket = Socket::new(self.config.config._socket_path.clone())?;
+    let mut socket = Socket::new(self.config.paths.socket.to_string())?;
     let socket_tx = action_tx.clone();
 
     task::spawn_blocking(move || -> Result<()> {

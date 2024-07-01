@@ -131,7 +131,7 @@ impl ConfigView {
 
 impl Component for ConfigView {
   fn init(&mut self, _rect: Rect) -> Result<()> {
-    let socket_path = &self.config.config._socket_path;
+    let socket_path = &self.config.paths.socket;
 
     let mut stream = UnixStream::connect(socket_path)?;
 
