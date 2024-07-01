@@ -77,7 +77,7 @@ impl App {
     task::spawn_blocking(move || -> Result<()> {
       socket.collect(socket_tx)?;
       Ok(())
-    }).await??;
+    });
 
     loop {
       use std::time::Instant;
