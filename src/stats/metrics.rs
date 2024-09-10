@@ -82,9 +82,9 @@ pub struct HaproxyBackend {
   #[serde(rename = "scur")]
   pub sessions: i64,
   #[serde(rename = "hrsp_5xx")]
-  pub http_500_req: f64,
+  pub http_500_req: Option<f64>,
   #[serde(rename = "hrsp_4xx")]
-  pub http_400_req: f64,
+  pub http_400_req: Option<f64>,
 
   #[serde(skip)]
   pub servers: Vec<HaproxyServer>,
