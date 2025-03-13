@@ -69,7 +69,7 @@ impl App {
 
     layout.register_action_handler(action_tx.clone())?;
     layout.register_config_handler(config)?;
-    layout.init(tui.size()?)?;
+    layout.init(Rect::new(0, 0, tui.size()?.width, tui.size()?.height))?;
 
     let mut socket = Socket::new(self.config.paths.socket.to_string())?;
     let socket_tx = action_tx.clone();
@@ -159,7 +159,7 @@ impl App {
           Action::Resize(w, h) => {
             tui.resize(Rect::new(0, 0, w, h))?;
             tui.draw(|f| {
-              let r = self.get_layout().draw(f, f.size());
+              let r = self.get_layout().draw(f, f.area());
               if let Err(e) = r {
                 action_tx.send(Action::Error(format!("Failed to draw: {:?}", e))).unwrap();
               }
@@ -167,7 +167,7 @@ impl App {
           },
           Action::Render => {
             tui.draw(|f| {
-              let r = self.get_layout().draw(f, f.size());
+              let r = self.get_layout().draw(f, f.area());
               if let Err(e) = r {
                 action_tx.send(Action::Error(format!("Failed to draw: {:?}", e))).unwrap();
               }
@@ -183,7 +183,7 @@ impl App {
 
             self.get_layout().register_action_handler(action_tx.clone())?;
             self.get_layout().register_config_handler(config)?;
-            self.get_layout().init(tui.size()?)?;
+            self.get_layout().init(Rect::new(0, 0, tui.size()?.width, tui.size()?.height))?;
           },
           _ => {},
         }
