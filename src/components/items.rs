@@ -35,6 +35,7 @@ pub struct Items<'a> {
   status_filter: StatusType,
   filter: Option<String>,
   sticky_backends: HashSet<String>,
+  table: Table<'a>,
 }
 
 impl Items<'_> {
@@ -50,6 +51,7 @@ impl Items<'_> {
       resource: ResourceType::default(),
       status_filter: StatusType::default(),
       filter: None,
+      table: Table::default(),
       sticky_backends: HashSet::new(),
     }
   }
@@ -202,6 +204,8 @@ impl Items<'_> {
     self.row_lookup = row_lookup;
     self.rows = rows;
 
+    self.create_table();
+
     let elapsed = now.elapsed();
     log::debug!("Update rows took: {:?}", elapsed);
   }
@@ -251,6 +255,26 @@ impl Items<'_> {
     }
     prev
   }
+
+  fn create_table(&mut self) -> () {
+    let mut lengths = Vec::new();
+    for header in &self.headers {
+      lengths.push(Constraint::Length(15));
+    }
+
+    if lengths.is_empty() {
+      lengths.push(Constraint::Length(15));
+    }
+
+    // lengths[0] = Constraint::Length(area.width - (lengths.len() as u16 - 1) * 15);
+
+    let table = Table::new(self.rows.iter().map(|row| row.clone()), lengths)
+      .header(Row::new(self.headers.clone()).bold())
+      .highlight_style(Style::new().light_yellow());
+
+    self.table = table;
+  }
+
 }
 
 impl Component for Items<'_> {
@@ -395,20 +419,7 @@ impl Component for Items<'_> {
   }
 
   fn draw(&mut self, f: &mut Frame<'_>, area: Rect) -> Result<()> {
-    let mut lengths = Vec::new();
-    for header in &self.headers {
-      lengths.push(Constraint::Length(15));
-    }
 
-    if lengths.is_empty() {
-      lengths.push(Constraint::Length(15));
-    }
-
-    lengths[0] = Constraint::Length(area.width - (lengths.len() as u16 - 1) * 15);
-
-    let table = Table::new(self.rows.clone(), lengths)
-      .header(Row::new(self.headers.clone()).bold())
-      .highlight_style(Style::new().light_yellow());
 
     let border = Block::new()
       .title(self.resource.to_string())
@@ -416,7 +427,7 @@ impl Component for Items<'_> {
       .border_style(Style::default().fg(Color::White));
 
     f.render_widget(border, area);
-    f.render_stateful_widget(table, area, &mut self.state);
+    f.render_stateful_widget(&self.table, area, &mut self.state);
     Ok(())
   }
 }
