@@ -1,4 +1,5 @@
-use color_eyre::eyre::Result;
+use color_eyre::eyre::{eyre, Result};
+use std::sync::Arc;
 use crossterm::event::KeyEvent;
 use ratatui::{
   layout::{Constraint, Direction, Layout},
@@ -30,7 +31,7 @@ pub struct App {
   pub should_suspend: bool,
   pub mode: Mode,
   pub last_tick_key_events: Vec<KeyEvent>,
-  pub haproxy_metrics: HaproxyMetrics,
+  pub haproxy_metrics: Arc<HaproxyMetrics>,
   pub typing_mode: TypingMode,
 }
 
@@ -51,7 +52,7 @@ impl App {
       config,
       mode,
       last_tick_key_events: Vec::new(),
-      haproxy_metrics: HaproxyMetrics::new(),
+      haproxy_metrics: Arc::new(HaproxyMetrics::new()),
       typing_mode: TypingMode::Navigation,
     })
   }
@@ -147,7 +148,12 @@ impl App {
             };
           },
           Action::UpdateStats(stats) => {
-            self.haproxy_metrics.update(stats)?;
+
+            // update metrics
+            let mut metrics = HaproxyMetrics::new();
+            metrics.update(stats.clone())?;
+            self.haproxy_metrics = Arc::new(metrics);
+
             action_tx.send(Action::MetricUpdate(self.haproxy_metrics.clone()))?;
           },
           Action::Tick => {

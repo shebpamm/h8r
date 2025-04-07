@@ -2,6 +2,7 @@ use color_eyre::{eyre::Result, owo_colors::OwoColorize};
 use ratatui::{prelude::*, widgets::*};
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedSender;
 
 use super::{Component, Frame};
@@ -26,7 +27,7 @@ pub struct Items<'a> {
   command_tx: Option<UnboundedSender<Action>>,
   config: Config,
   state: TableState,
-  metrics: HaproxyMetrics,
+  metrics: Option<Arc<HaproxyMetrics>>,
   headers: Vec<String>,
   rows: Vec<Row<'a>>,
   row_lookup: HashMap<Row<'a>, LookupType>,
@@ -43,7 +44,7 @@ impl Items<'_> {
       config: Config::default(),
       state: TableState::default(),
       headers: Vec::default(),
-      metrics: HaproxyMetrics::default(),
+      metrics: None,
       rows: Vec::default(),
       row_lookup: HashMap::new(),
       resource: ResourceType::default(),
@@ -53,7 +54,15 @@ impl Items<'_> {
     }
   }
 
-  fn update_rows(&mut self, data: HaproxyMetrics) {
+  fn update_rows(&mut self) {
+    let data = self.metrics.clone();
+
+    if data.is_none() {
+      return;
+    }
+
+    let data = data.unwrap();
+
     use std::time::Instant;
     let now = Instant::now();
 
@@ -83,11 +92,11 @@ impl Items<'_> {
       }
     }
 
-    match (self.resource, data.instant) {
+    match (self.resource, &data.instant) {
       (ResourceType::Frontend, Some(instant)) => {
         self.headers = vec!["".to_string(), "State".to_string(), "Requests".to_string()];
-        for frontend in instant.data.frontends {
-          let name = frontend.name.unwrap_or("".to_string());
+        for frontend in &instant.data.frontends {
+          let name = &frontend.name.clone().unwrap_or("".to_string());
 
           if let Some(filter) = &self.filter {
             if !name.contains(filter) {
@@ -99,13 +108,13 @@ impl Items<'_> {
             continue;
           }
 
-          let row = Row::new(vec![name, frontend.status.to_string(), frontend.requests.to_string()]);
+          let row = Row::new(vec![name.clone(), frontend.status.to_string(), frontend.requests.to_string()]);
           rows.push(row);
         }
       },
       (ResourceType::Backend, Some(instant)) => {
         self.headers = vec!["".to_string(), "State".to_string(), "Requests".to_string()];
-        for backend in instant.data.backends {
+        for backend in instant.data.backends.clone() {
           let name = backend.clone().name.unwrap_or("".to_string());
 
           let is_stickied = self.sticky_backends.contains(&name);
@@ -131,7 +140,7 @@ impl Items<'_> {
       },
       (ResourceType::Server, Some(instant)) => {
         self.headers = vec!["".to_string(), "Backend".to_string(), "State".to_string(), "Requests".to_string()];
-        for server in instant.data.servers {
+        for server in instant.data.servers.clone() {
           let name = server.name.unwrap_or("".to_string());
 
           if let Some(filter) = &self.filter {
@@ -147,7 +156,7 @@ impl Items<'_> {
       (ResourceType::Combined, Some(instant)) => {
         self.headers =
           vec!["".to_string(), "Type".to_string(), "State".to_string(), "Code".to_string(), "Requests".to_string()];
-        for backend in instant.data.backends {
+        for backend in instant.data.backends.clone() {
           let backend_name = backend.clone().name.unwrap_or("".to_string());
 
           let is_stickied = self.sticky_backends.contains(&backend_name);
@@ -250,7 +259,10 @@ impl Component for Items<'_> {
     if self.state.selected().is_none() {
       self.state.select(Some(0));
     }
-    self.update_rows(self.metrics.clone());
+    if let Some(metrics) = &self.metrics {
+      self.update_rows();
+    }
+
     Ok(())
   }
 
@@ -307,26 +319,26 @@ impl Component for Items<'_> {
   fn update(&mut self, action: Action) -> Result<Option<Action>> {
     match action {
       Action::MetricUpdate(metrics) => {
-        self.metrics = metrics.clone();
-        self.update_rows(metrics);
+        self.metrics = Some(metrics.clone());
+        self.update_rows();
         Ok(None)
       },
       Action::SelectResource(resource) => {
         self.resource = resource;
         self.state.select(Some(0));
-        self.update_rows(self.metrics.clone());
+        self.update_rows();
         Ok(None)
       },
       Action::SelectStatus(resource) => {
         self.status_filter = resource;
         self.state.select(Some(0));
-        self.update_rows(self.metrics.clone());
+        self.update_rows();
         Ok(None)
       },
       Action::Filter(filter_string) => {
         self.filter = Some(filter_string);
         self.state.select(Some(0));
-        self.update_rows(self.metrics.clone());
+        self.update_rows();
         Ok(None)
       },
       Action::Sticky => {
@@ -341,10 +353,10 @@ impl Component for Items<'_> {
 
                 if self.sticky_backends.contains(&data.name.clone().unwrap_or("".to_string())) {
                   self.sticky_backends.remove(&data.name.clone().unwrap_or("".to_string()));
-                  self.update_rows(self.metrics.clone());
+                  self.update_rows();
                 } else {
                   self.sticky_backends.insert(data.name.clone().unwrap_or("".to_string()));
-                  self.update_rows(self.metrics.clone());
+                  self.update_rows();
                 }
               }
             }

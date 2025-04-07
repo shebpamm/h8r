@@ -6,6 +6,7 @@ use ratatui::{
   widgets::{Block, Borders, Paragraph},
 };
 
+use std::sync::Arc;
 use std::string::ToString;
 use strum::Display;
 
@@ -22,7 +23,7 @@ use super::Component;
 
 #[derive(Debug, Clone)]
 pub struct Status {
-  metrics: HaproxyMetrics,
+  metrics: Option<Arc<HaproxyMetrics>>,
   selected_backend: Option<String>,
 }
 
@@ -34,7 +35,7 @@ impl Default for Status {
 
 impl Status {
   pub fn new() -> Self {
-    Self { metrics: HaproxyMetrics::default(), selected_backend: None }
+    Self { metrics: None, selected_backend: None }
   }
 }
 
@@ -65,7 +66,13 @@ const STATUS_METRICS: [StatusMetrics; 6] = [
 
 impl Status {
   fn get_metric(&self, metric: StatusMetrics) -> Option<String> {
-    let instant = self.metrics.instant.clone()?;
+    if self.metrics.is_none() { 
+      return None;
+    }
+
+    let metrics = self.metrics.clone()?;
+
+    let instant = metrics.instant.clone()?;
 
     // find the correct backend
     let backend = instant.data.backends.iter().find(|b| b.name == self.selected_backend)?;
@@ -85,7 +92,7 @@ impl Component for Status {
   fn update(&mut self, action: Action) -> Result<Option<Action>> {
     match action {
       Action::MetricUpdate(metrics) => {
-        self.metrics = metrics.clone();
+        self.metrics = Some(metrics.clone());
         Ok(None)
       },
       Action::UseItem(backend_name) => {
