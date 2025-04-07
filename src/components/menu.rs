@@ -31,6 +31,8 @@ impl Menu<'_> {
 
 impl Component for Menu<'_> {
   fn update(&mut self, action: Action) -> Result<Option<Action>> {
+    log::trace!("Menu::update:name: {:?}", action.to_string());
+    log::trace!("Menu::update:size: {:?}", std::mem::size_of_val(&action));
     match action {
       Action::TypingMode(typing_mode) => {
         self.focused = typing_mode == TypingMode::Filter;

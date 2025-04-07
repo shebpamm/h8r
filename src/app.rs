@@ -80,7 +80,7 @@ impl App {
       Ok(())
     });
 
-    loop {
+    'main: loop {
       use std::time::Instant;
       let now = Instant::now();
       if let Some(mut e) = tui.next().await {
@@ -120,8 +120,21 @@ impl App {
 
       while let Ok(action) = action_rx.try_recv() {
         if action != Action::Tick && action != Action::Render {
-          log::trace!("{action:?}");
+           let name = action.to_string();
+          log::trace!("{name}");
         }
+
+        // check if enum is Action::UpdateStats
+        if let Action::UpdateStats(stats) = action.clone() {
+            // update metrics
+            let mut metrics = HaproxyMetrics::new();
+            metrics.update(stats.clone())?;
+            self.haproxy_metrics = Arc::new(metrics);
+
+            action_tx.send(Action::MetricUpdate(self.haproxy_metrics.clone()))?;
+            continue;
+        }
+
         match action.clone() {
           Action::MoveUp => {
             match self.typing_mode {
@@ -147,15 +160,7 @@ impl App {
               _ => None,
             };
           },
-          Action::UpdateStats(stats) => {
-
-            // update metrics
-            let mut metrics = HaproxyMetrics::new();
-            metrics.update(stats.clone())?;
-            self.haproxy_metrics = Arc::new(metrics);
-
-            action_tx.send(Action::MetricUpdate(self.haproxy_metrics.clone()))?;
-          },
+          
           Action::Tick => {
             self.last_tick_key_events.drain(..);
           },

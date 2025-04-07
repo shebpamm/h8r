@@ -207,7 +207,7 @@ impl Items<'_> {
     self.create_table();
 
     let elapsed = now.elapsed();
-    log::debug!("Update rows took: {:?}", elapsed);
+    log::trace!("Update rows took: {:?}", elapsed);
   }
 
   fn find_next_row(&self) -> usize {
