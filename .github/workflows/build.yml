@@ -15,14 +15,12 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@main
       - run: nix build -o amd64-bin
       - run: nix build .#deb -o amd64-deb
-      - run: nix build --system aarch64-linux -o arm-bin
-      - run: nix build .#deb --system aarch64-linux -o arm-deb
+      # - run: nix build --system aarch64-linux -o arm-bin
+      # - run: nix build .#deb --system aarch64-linux -o arm-deb
 
       - uses: actions/upload-artifact@v4
         with:
           name: build-artifacts
           path: |
             amd64-bin/bin/h8r
-            arm-bin/bin/h8r
             amd64-deb/h8r.deb
-            arm-deb/h8r.deb
