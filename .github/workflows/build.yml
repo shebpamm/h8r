@@ -13,14 +13,16 @@ jobs:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
-      - run: nix build
-      - uses: actions/upload-artifact@v4
-        with:
-          name: cargo-build
-          path: result/bin/h8r
+      - run: nix build -o amd64-bin
+      - run: nix build .#deb -o amd64-deb
+      - run: nix build --system aarch64-linux -o arm-bin
+      - run: nix build .#deb --system aarch64-linux -o arm-deb
 
-      - run: nix build .#deb -o deb
       - uses: actions/upload-artifact@v4
         with:
-          name: debian
-          path: deb/h8r.deb
+          name: build-artifacts
+          path: |
+            amd64-bin/bin/h8r
+            arm-bin/bin/h8r
+            amd64-deb/h8r.deb
+            arm-deb/h8r.deb
