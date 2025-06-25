@@ -1,0 +1,89 @@
+name: Release
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Build cargo package and deb file
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-24.04
+            output-suffix: amd64
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+            output-suffix: arm64
+    runs-on: ${{ matrix.runner }}
+    env:
+      DOCKER_BUILDKIT: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - name: Build binary
+        run: nix build -o ${{ matrix.output-suffix }}-bin
+      - name: Build deb package
+        run: nix build .#deb -o ${{ matrix.output-suffix }}-deb
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts-${{ matrix.arch }}
+          path: |
+            ${{ matrix.output-suffix }}-bin/bin/h8r
+            ${{ matrix.output-suffix }}-deb/h8r.deb
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download x86_64 artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts-x86_64
+          path: ./artifacts/x86_64
+      
+      - name: Download aarch64 artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts-aarch64
+          path: ./artifacts/aarch64
+      
+      - name: Prepare release files
+        run: |
+          mkdir -p release-files
+          
+          # Extract version from tag (remove 'v' prefix)
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "Version: $VERSION"
+          
+          # Copy and rename binaries
+          cp ./artifacts/x86_64/amd64-bin/bin/h8r ./release-files/h8r_${VERSION}_amd64
+          cp ./artifacts/aarch64/arm64-bin/bin/h8r ./release-files/h8r_${VERSION}_arm64
+          
+          # Copy and rename deb packages
+          cp ./artifacts/x86_64/amd64-deb/h8r.deb ./release-files/h8r_${VERSION}_amd64.deb
+          cp ./artifacts/aarch64/arm64-deb/h8r.deb ./release-files/h8r_${VERSION}_arm64.deb
+          
+          # Make binaries executable
+          chmod +x ./release-files/h8r_${VERSION}_amd64
+          chmod +x ./release-files/h8r_${VERSION}_arm64
+          
+          # List files for verification
+          ls -la ./release-files/
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            release-files/h8r_* 
