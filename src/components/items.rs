@@ -36,6 +36,7 @@ pub struct Items<'a> {
   filter: Option<String>,
   sticky_backends: HashSet<String>,
   table: Table<'a>,
+  area: Option<Rect>,
 }
 
 impl Items<'_> {
@@ -53,6 +54,7 @@ impl Items<'_> {
       filter: None,
       table: Table::default(),
       sticky_backends: HashSet::new(),
+      area: None,
     }
   }
 
@@ -266,6 +268,9 @@ impl Items<'_> {
       lengths.push(Constraint::Length(15));
     }
 
+    if let Some(area) = self.area {
+      lengths[0] = Constraint::Length(area.width - (lengths.len() as u16 - 1) * 15);
+    }
     // lengths[0] = Constraint::Length(area.width - (lengths.len() as u16 - 1) * 15);
 
     let table = Table::new(self.rows.iter().map(|row| row.clone()), lengths)
@@ -419,7 +424,7 @@ impl Component for Items<'_> {
   }
 
   fn draw(&mut self, f: &mut Frame<'_>, area: Rect) -> Result<()> {
-
+    self.area = Some(area);
 
     let border = Block::new()
       .title(self.resource.to_string())
