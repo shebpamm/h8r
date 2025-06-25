@@ -25,7 +25,7 @@ args@{
   cargoConfig ? {},
 }:
 let
-  nixifiedLockHash = "aa1c28c6d76fd84364984f0f80e1ce73122d36ef6c8bd600e1eb0658dad693a8";
+  nixifiedLockHash = "ea50c2797b3f3fd98999bb4be5f6af69a1eb9d1065ef83f79fdbc0727fb0b13f";
   workspaceSrc = if args.workspaceSrc == null then ./. else args.workspaceSrc;
   currentLockHash = builtins.hashFile "sha256" (workspaceSrc + /Cargo.lock);
   lockHashIgnored = if ignoreLockHash
@@ -54,7 +54,7 @@ in
 {
   cargo2nixVersion = "0.12.0";
   workspace = {
-    h8r = rustPackages.unknown.h8r."2.2.0";
+    h8r = rustPackages.unknown.h8r."2.3.0";
   };
   "registry+https://github.com/rust-lang/crates.io-index".addr2line."0.24.2" = overridableMkRustCrate (profileName: rec {
     name = "addr2line";
@@ -2002,9 +2002,9 @@ in
     };
   });
   
-  "unknown".h8r."2.2.0" = overridableMkRustCrate (profileName: rec {
+  "unknown".h8r."2.3.0" = overridableMkRustCrate (profileName: rec {
     name = "h8r";
-    version = "2.2.0";
+    version = "2.3.0";
     registry = "unknown";
     src = fetchCrateLocal workspaceSrc;
     features = builtins.concatLists [
