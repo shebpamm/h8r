@@ -1,11 +1,12 @@
 use std::io::{Read, Write};
 use std::os::unix::net::UnixStream;
 use std::time::Duration;
+use std::sync::Arc;
 
 use color_eyre::eyre::Result;
 use tokio::sync::mpsc::UnboundedSender;
 
-use super::data::HaproxyStat;
+use super::{data::HaproxyStat, metrics::HaproxyMetrics};
 use crate::action::Action;
 
 pub struct Socket {
@@ -43,10 +44,17 @@ impl Socket {
       // file.write_all(resp.as_bytes())?;
 
       let stats = HaproxyStat::parse_csv(&resp)?;
+      
+      // Process metrics in background thread to avoid blocking UI
+      let mut metrics = HaproxyMetrics::new();
+      metrics.update(stats)?;
+      
       if action_tx.is_closed() {
         return Ok(());
       }
-      action_tx.send(Action::UpdateStats(stats))?;
+      
+      // Send processed metrics instead of raw stats
+      action_tx.send(Action::MetricUpdate(Arc::new(metrics)))?;
 
       break;
     }

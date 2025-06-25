@@ -10,7 +10,7 @@ use serde::{
 use strum::Display;
 use tokio::sync::RwLock;
 
-use crate::stats::data::{HaproxyStat, ResourceType, StatusType};
+use crate::stats::data::{ResourceType, StatusType};
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Serialize, Display, Deserialize)]
 pub enum TypingMode {
@@ -42,7 +42,6 @@ pub enum Action {
   MoveSectionUp,
   MoveSectionDown,
   Sticky,
-  UpdateStats(Vec<HaproxyStat>),
   #[serde(with = "serde_arc_metrics")]
   MetricUpdate(Arc<HaproxyMetrics>),
   SelectResource(ResourceType),

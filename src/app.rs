@@ -124,18 +124,10 @@ impl App {
           log::trace!("{name}");
         }
 
-        // check if enum is Action::UpdateStats
-        if let Action::UpdateStats(stats) = action.clone() {
-            // update metrics
-            let mut metrics = HaproxyMetrics::new();
-            metrics.update(stats.clone())?;
-            self.haproxy_metrics = Arc::new(metrics);
-
-            action_tx.send(Action::MetricUpdate(self.haproxy_metrics.clone()))?;
-            continue;
-        }
-
         match action.clone() {
+          Action::MetricUpdate(metrics) => {
+            self.haproxy_metrics = metrics;
+          },
           Action::MoveUp => {
             match self.typing_mode {
               TypingMode::Navigation => self.get_layout().move_up(MovementMode::Single)?,
