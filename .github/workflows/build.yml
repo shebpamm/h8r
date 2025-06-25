@@ -6,21 +6,30 @@ on:
 jobs:
   build:
     name: Build cargo package and deb file
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-24.04
+            output-suffix: amd64
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+            output-suffix: arm64
+    runs-on: ${{ matrix.runner }}
     env:
       DOCKER_BUILDKIT: 1
     steps:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
-      - run: nix build -o amd64-bin
-      - run: nix build .#deb -o amd64-deb
-      # - run: nix build --system aarch64-linux -o arm-bin
-      # - run: nix build .#deb --system aarch64-linux -o arm-deb
+      - name: Build binary
+        run: nix build -o ${{ matrix.output-suffix }}-bin
+      - name: Build deb package
+        run: nix build .#deb -o ${{ matrix.output-suffix }}-deb
 
       - uses: actions/upload-artifact@v4
         with:
-          name: build-artifacts
+          name: build-artifacts-${{ matrix.arch }}
           path: |
-            amd64-bin/bin/h8r
-            amd64-deb/h8r.deb
+            ${{ matrix.output-suffix }}-bin/bin/h8r
+            ${{ matrix.output-suffix }}-deb/h8r.deb
