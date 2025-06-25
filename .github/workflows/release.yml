@@ -24,7 +24,7 @@ jobs:
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
       - name: Build binary
-        run: nix build -o ${{ matrix.output-suffix }}-bin
+        run: nix build -o ${{ matrix.output-suffix }}
       - name: Build deb package
         run: nix build .#deb -o ${{ matrix.output-suffix }}-deb
 
