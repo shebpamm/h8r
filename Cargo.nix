@@ -25,7 +25,7 @@ args@{
   cargoConfig ? {},
 }:
 let
-  nixifiedLockHash = "ea50c2797b3f3fd98999bb4be5f6af69a1eb9d1065ef83f79fdbc0727fb0b13f";
+  nixifiedLockHash = "430b8b2b01e225e5af1c441c6d39d4fb90bb75d83ac545120f5e4e52310dfed8";
   workspaceSrc = if args.workspaceSrc == null then ./. else args.workspaceSrc;
   currentLockHash = builtins.hashFile "sha256" (workspaceSrc + /Cargo.lock);
   lockHashIgnored = if ignoreLockHash
@@ -54,7 +54,7 @@ in
 {
   cargo2nixVersion = "0.12.0";
   workspace = {
-    h8r = rustPackages.unknown.h8r."2.3.0";
+    h8r = rustPackages.unknown.h8r."2.4.0";
   };
   "registry+https://github.com/rust-lang/crates.io-index".addr2line."0.24.2" = overridableMkRustCrate (profileName: rec {
     name = "addr2line";
@@ -838,11 +838,11 @@ in
     };
   });
   
-  "registry+https://github.com/rust-lang/crates.io-index".crunchy."0.2.3" = overridableMkRustCrate (profileName: rec {
+  "registry+https://github.com/rust-lang/crates.io-index".crunchy."0.2.4" = overridableMkRustCrate (profileName: rec {
     name = "crunchy";
-    version = "0.2.3";
+    version = "0.2.4";
     registry = "registry+https://github.com/rust-lang/crates.io-index";
-    src = fetchCratesIo { inherit name version; sha256 = "43da5946c66ffcc7745f48db692ffbb10a83bfe0afd96235c5c2a4fb23994929"; };
+    src = fetchCratesIo { inherit name version; sha256 = "460fbee9c2c2f33933d720630a6a0bac33ba7053db5344fac858d4b8952d77d5"; };
     features = builtins.concatLists [
       [ "default" ]
       [ "limit_128" ]
@@ -1165,7 +1165,7 @@ in
     dependencies = {
       cfg_if = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".cfg-if."1.0.1" { inherit profileName; }).out;
       ${ if hostPlatform.isUnix then "libc" else null } = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".libc."0.2.174" { inherit profileName; }).out;
-      ${ if hostPlatform.parsed.kernel.name == "redox" then "libredox" else null } = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".libredox."0.1.3" { inherit profileName; }).out;
+      ${ if hostPlatform.parsed.kernel.name == "redox" then "libredox" else null } = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".libredox."0.1.4" { inherit profileName; }).out;
       ${ if hostPlatform.isWindows then "windows_sys" else null } = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".windows-sys."0.59.0" { inherit profileName; }).out;
     };
   });
@@ -2002,9 +2002,9 @@ in
     };
   });
   
-  "unknown".h8r."2.3.0" = overridableMkRustCrate (profileName: rec {
+  "unknown".h8r."2.4.0" = overridableMkRustCrate (profileName: rec {
     name = "h8r";
-    version = "2.3.0";
+    version = "2.4.0";
     registry = "unknown";
     src = fetchCrateLocal workspaceSrc;
     features = builtins.concatLists [
@@ -2447,11 +2447,11 @@ in
     ];
   });
   
-  "registry+https://github.com/rust-lang/crates.io-index".libredox."0.1.3" = overridableMkRustCrate (profileName: rec {
+  "registry+https://github.com/rust-lang/crates.io-index".libredox."0.1.4" = overridableMkRustCrate (profileName: rec {
     name = "libredox";
-    version = "0.1.3";
+    version = "0.1.4";
     registry = "registry+https://github.com/rust-lang/crates.io-index";
-    src = fetchCratesIo { inherit name version; sha256 = "c0ff37bd590ca25063e35af745c343cb7a0271906fb7b37e4813e8f79f00268d"; };
+    src = fetchCratesIo { inherit name version; sha256 = "1580801010e535496706ba011c15f8532df6b42297d2e471fec38ceadd8c0638"; };
     features = builtins.concatLists [
       [ "call" ]
       [ "default" ]
@@ -3128,7 +3128,7 @@ in
     src = fetchCratesIo { inherit name version; sha256 = "ba009ff324d1fc1b900bd1fdb31564febe58a8ccc8a6fdbb93b543d33b13ca43"; };
     dependencies = {
       getrandom = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".getrandom."0.2.16" { inherit profileName; }).out;
-      libredox = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".libredox."0.1.3" { inherit profileName; }).out;
+      libredox = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".libredox."0.1.4" { inherit profileName; }).out;
       thiserror = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".thiserror."1.0.69" { inherit profileName; }).out;
     };
   });
@@ -3964,7 +3964,7 @@ in
       [ "shake" ]
     ];
     dependencies = {
-      crunchy = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".crunchy."0.2.3" { inherit profileName; }).out;
+      crunchy = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".crunchy."0.2.4" { inherit profileName; }).out;
     };
   });
   

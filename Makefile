@@ -1,6 +1,6 @@
 .PHONY: all amd64-bin amd64-deb arm-bin arm-deb copy-builds
 
-VERSION = 2.3.0
+VERSION = 2.4.0
 BUILD_DIR = build
 
 all: amd64-bin amd64-deb arm-bin arm-deb copy-builds
