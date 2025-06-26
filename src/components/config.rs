@@ -17,9 +17,11 @@ use syntect::easy::HighlightLines;
 use syntect::highlighting::ThemeSet;
 use syntect::parsing::{SyntaxDefinition, SyntaxSet, SyntaxSetBuilder};
 use syntect::util::as_24_bit_terminal_escaped;
+use std::time::Instant;
 
 const HAPROXY_SYNTAX: &str = include_str!("../../.config/haproxy.sublime-syntax");
 
+#[derive(Debug)]
 struct HaproxyConfigSnippets {
     frontend: Vec<String>,
     backend: Vec<String>,
@@ -40,14 +42,18 @@ pub struct ConfigView {
   highlighted_config: Option<Vec<String>>,
   haproxy_parse_error: Option<Box<Error>>,
   selected_backend: Option<String>,
+  parsed_snippets: Option<HaproxyConfigSnippets>,
 }
 
 impl ConfigView {
   fn find_config(&mut self) -> Result<()> {
+    log::debug!("ConfigView::find_config: Starting config search for PID: {:?}", self.pid);
     let process_path = format!("/proc/{}/cmdline", self.pid.unwrap());
     let process_cwd = format!("/proc/{}/cwd", self.pid.unwrap());
     let process_cmdline = std::fs::read_to_string(process_path)?;
     let process_cmdline = process_cmdline.split("\0").collect::<Vec<&str>>();
+    log::debug!("ConfigView::find_config: Process cmdline: {:?}", process_cmdline);
+    
     // find -f flag
     let mut config_path = None;
     for (i, arg) in process_cmdline.iter().enumerate() {
@@ -59,39 +65,54 @@ impl ConfigView {
 
     if let Some(config_path) = config_path {
       let raw_path = Some(config_path.to_string());
+      log::debug!("ConfigView::find_config: Found config path flag: {}", config_path);
       // Resolve the path based on cwd
       let cwd = std::fs::read_link(process_cwd)?;
       let cwd = cwd.to_str().unwrap();
       let config_path = std::path::Path::new(cwd).join(config_path);
       let config_path = config_path.to_str().unwrap().to_string();
-      self.config_path = Some(config_path);
+      self.config_path = Some(config_path.clone());
+      log::debug!("ConfigView::find_config: Resolved config path: {}", config_path);
 
       // read the config
       self.read_config()?;
+    } else {
+      log::warn!("ConfigView::find_config: No -f flag found in cmdline");
     };
 
+    log::debug!("ConfigView::find_config: Completed");
     Ok(())
   }
 
   fn read_config(&mut self) -> Result<()> {
+    let start = Instant::now();
+    log::debug!("ConfigView::read_config: Starting config read from: {:?}", self.config_path);
+    
     // If the config is a directory, concatenate all files in alphabetic order, otherwise if
     // it's a file, read it directly
     let content = match std::fs::read_dir(&self.config_path.as_ref().unwrap()) {
       Ok(entries) => {
+        log::debug!("ConfigView::read_config: Reading directory");
         let mut content = String::new();
         for entry in entries {
           let entry = entry?;
           let path = entry.path();
           let path = path.to_str().unwrap();
+          log::debug!("ConfigView::read_config: Reading file: {}", path);
           let file_content = std::fs::read_to_string(path)?;
           content.push_str(&file_content);
         }
         content
       },
-      Err(_) => std::fs::read_to_string(&self.config_path.as_ref().unwrap())?,
+      Err(_) => {
+        log::debug!("ConfigView::read_config: Reading single file");
+        std::fs::read_to_string(&self.config_path.as_ref().unwrap())?
+      },
     };
 
+    log::debug!("ConfigView::read_config: Config content size: {} bytes", content.len());
 
+    let syntax_start = Instant::now();
     let sd = SyntaxDefinition::load_from_str(HAPROXY_SYNTAX, false, None).unwrap();
     let mut ps_builder = SyntaxSetBuilder::new();
     ps_builder.add(sd);
@@ -99,12 +120,14 @@ impl ConfigView {
     let ts = ThemeSet::load_defaults();
     let syntax = ps.find_syntax_by_name("Haproxy").unwrap();
     let mut h = HighlightLines::new(syntax, &ts.themes["base16-ocean.dark"]);
+    log::debug!("ConfigView::read_config: Syntax highlighting setup took: {:?}", syntax_start.elapsed());
 
     self.haproxy_config = Some(content.lines().map(|line| line.to_string()).collect());
 
     let is_inside_screen = std::env::var("TERM").unwrap_or_default().contains("screen");
+    log::debug!("ConfigView::read_config: Terminal type (is_inside_screen): {}", is_inside_screen);
 
-
+    let highlight_start = Instant::now();
     match is_inside_screen {
       true => {
         self.highlighted_config = self.haproxy_config.clone();
@@ -124,56 +147,23 @@ impl ConfigView {
       },
     }
 
-
-    Ok(())
-  }
-}
-
-impl Component for ConfigView {
-  fn init(&mut self, _rect: Rect) -> Result<()> {
-    let socket_path = &self.config.paths.socket;
-
-    let mut stream = UnixStream::connect(socket_path)?;
-
-    loop {
-      match stream.write(b"show info\n") {
-        Ok(_) => {
-          log::debug!("Querying info");
-        },
-        Err(e) => {
-          println!("Error: {}", e);
-        },
-      }
-
-      let mut resp = String::new();
-      stream.read_to_string(&mut resp)?;
-
-      // find line that begins with Pid:
-      let pid_line = resp.lines().find(|line| line.starts_with("Pid:"));
-
-      if let Some(pid_line) = pid_line {
-        let pid = pid_line.split(":").last().unwrap().trim();
-        self.pid = Some(pid.parse().unwrap());
-        match self.find_config() {
-          Ok(_) => {
-            break;
-          },
-          Err(e) => {
-            self.haproxy_parse_error = Some(Box::new(e));
-            break;
-          },
-        }
-      }
-
-      break;
-    }
+    log::debug!("ConfigView::read_config: Syntax highlighting took: {:?}", highlight_start.elapsed());
+    log::debug!("ConfigView::read_config: Total read_config took: {:?}", start.elapsed());
 
     Ok(())
   }
 
-  fn draw(&mut self, f: &mut Frame<'_>, rect: Rect) -> Result<()> {
-    let content = match self.haproxy_config {
-      Some(ref config) => {
+  fn parse_config_snippets(&mut self) -> Result<()> {
+    use std::time::Instant;
+    let start = Instant::now();
+    log::debug!("ConfigView::parse_config_snippets: Starting config parsing for backend: {:?}", self.selected_backend);
+    
+    if let Some(ref config) = self.haproxy_config {
+      log::debug!("ConfigView::parse_config_snippets: Config has {} lines", config.len());
+      
+      if let Some(ref selected_backend) = self.selected_backend {
+        log::debug!("ConfigView::parse_config_snippets: Parsing for backend: {}", selected_backend);
+        
         // find the backend section for current backend
         let mut backend = None;
 
@@ -183,43 +173,48 @@ impl Component for ConfigView {
         // self.haproxy_config
         let mut backend_lines = vec![];
 
+        let backend_search_start = Instant::now();
         for i in 0..config.len() {
           let line = &config[i];
-          if let Some(ref selected_backend) = self.selected_backend {
-            if line.starts_with("backend") && line.contains(selected_backend) {
-              backend = Some(selected_backend);
-              backend_lines.push(self.highlighted_config.as_ref().unwrap()[i].clone());
-              continue;
-            }
+          if line.starts_with("backend") && line.contains(selected_backend) {
+            backend = Some(selected_backend);
+            backend_lines.push(self.highlighted_config.as_ref().unwrap()[i].clone());
+            log::debug!("ConfigView::parse_config_snippets: Found backend section at line {}", i);
+            continue;
           }
 
           if let Some(ref backend) = backend {
             if line.starts_with("backend") {
+              log::debug!("ConfigView::parse_config_snippets: End of backend section at line {}", i);
               break;
             }
             backend_lines.push(self.highlighted_config.as_ref().unwrap()[i].clone());
           }
         }
+        log::debug!("ConfigView::parse_config_snippets: Backend search took: {:?}, found {} lines", 
+                   backend_search_start.elapsed(), backend_lines.len());
 
         // find use_backend matching our backend
+        let use_backend_search_start = Instant::now();
         let mut use_backend = None;
         let mut use_backend_highlighted = None;
         for i in 0..config.len() {
           let line = &config[i];
           if line.contains("use_backend") {
-            if let Some(ref selected_backend) = self.selected_backend {
-              if line.contains(selected_backend) {
-                use_backend = Some(line.to_string());
-                use_backend_highlighted = Some(self.highlighted_config.as_ref().unwrap()[i].clone());
-                break;
-              }
+            if line.contains(selected_backend) {
+              use_backend = Some(line.to_string());
+              use_backend_highlighted = Some(self.highlighted_config.as_ref().unwrap()[i].clone());
+              log::debug!("ConfigView::parse_config_snippets: Found use_backend at line {}: {}", i, line.trim());
+              break;
             }
           }
         }
+        log::debug!("ConfigView::parse_config_snippets: use_backend search took: {:?}", use_backend_search_start.elapsed());
 
         // parse acls used in use_backend line
         // example use_backend:
         // use_backend backend if acl1 acl2
+        let acl_parse_start = Instant::now();
         let mut acls = vec![];
         if let Some(ref use_backend) = use_backend {
           let parts: Vec<&str> = use_backend.split_whitespace().collect();
@@ -232,6 +227,7 @@ impl Component for ConfigView {
             }
           }
         }
+        log::debug!("ConfigView::parse_config_snippets: Found ACLs: {:?}", acls);
 
         // find acl lines matching our acls
         let mut acl_lines = vec![];
@@ -240,21 +236,118 @@ impl Component for ConfigView {
           for acl in &acls {
             if line.trim().starts_with(format!("acl {}", acl).as_str()) {
               acl_lines.push(self.highlighted_config.as_ref().unwrap()[i].clone());
+              log::debug!("ConfigView::parse_config_snippets: Found ACL definition at line {}: {}", i, line.trim());
             }
           }
         }
+        log::debug!("ConfigView::parse_config_snippets: ACL parsing took: {:?}, found {} ACL lines", 
+                   acl_parse_start.elapsed(), acl_lines.len());
 
-        let snippets = HaproxyConfigSnippets {
+        self.parsed_snippets = Some(HaproxyConfigSnippets {
           frontend: vec!(use_backend_highlighted.unwrap_or("".to_string())),
           backend: backend_lines,
           acl: acl_lines,
-        };
+        });
+      } else {
+        log::debug!("ConfigView::parse_config_snippets: No backend selected, creating empty snippets");
+        self.parsed_snippets = Some(HaproxyConfigSnippets {
+          frontend: vec![],
+          backend: vec![],
+          acl: vec![],
+        });
+      }
+    } else {
+      log::warn!("ConfigView::parse_config_snippets: No haproxy_config available");
+    }
+    
+    log::debug!("ConfigView::parse_config_snippets: Total parsing took: {:?}", start.elapsed());
+    Ok(())
+  }
+}
 
-        HaproxyDisplay::Lines(snippets)
+impl Component for ConfigView {
+  fn init(&mut self, _rect: Rect) -> Result<()> {
+    use std::time::Instant;
+    let start = Instant::now();
+    log::debug!("ConfigView::init: Starting initialization");
+    
+    let socket_path = &self.config.paths.socket;
+    log::debug!("ConfigView::init: Connecting to socket: {}", socket_path);
+
+    let mut stream = UnixStream::connect(socket_path)?;
+
+    loop {
+      match stream.write(b"show info\n") {
+        Ok(_) => {
+          log::debug!("ConfigView::init: Querying info");
+        },
+        Err(e) => {
+          log::error!("ConfigView::init: Socket write error: {}", e);
+          println!("Error: {}", e);
+        },
+      }
+
+      let mut resp = String::new();
+      let read_start = Instant::now();
+      stream.read_to_string(&mut resp)?;
+      log::debug!("ConfigView::init: Socket read took: {:?}, response size: {} bytes", 
+                 read_start.elapsed(), resp.len());
+
+      // find line that begins with Pid:
+      let pid_line = resp.lines().find(|line| line.starts_with("Pid:"));
+
+      if let Some(pid_line) = pid_line {
+        let pid = pid_line.split(":").last().unwrap().trim();
+        self.pid = Some(pid.parse().unwrap());
+        log::debug!("ConfigView::init: Found HAProxy PID: {}", pid);
+        
+        match self.find_config() {
+          Ok(_) => {
+            self.parse_config_snippets()?;
+            log::debug!("ConfigView::init: Config found and parsed successfully");
+            break;
+          },
+          Err(e) => {
+            log::error!("ConfigView::init: Config parsing error: {}", e);
+            self.haproxy_parse_error = Some(Box::new(e));
+            break;
+          },
+        }
+      } else {
+        log::warn!("ConfigView::init: No Pid line found in HAProxy info response");
+      }
+
+      break;
+    }
+
+    log::debug!("ConfigView::init: Total initialization took: {:?}", start.elapsed());
+    Ok(())
+  }
+
+  fn draw(&mut self, f: &mut Frame<'_>, rect: Rect) -> Result<()> {
+    use std::time::Instant;
+    let start = Instant::now();
+    log::trace!("ConfigView::draw: Starting draw");
+    
+    let content = match self.parsed_snippets {
+      Some(ref snippets) => {
+        log::trace!("ConfigView::draw: Using cached snippets - frontend: {}, backend: {}, acl: {}", 
+                   snippets.frontend.len(), snippets.backend.len(), snippets.acl.len());
+        HaproxyDisplay::Lines(HaproxyConfigSnippets {
+          frontend: snippets.frontend.clone(),
+          backend: snippets.backend.clone(),
+          acl: snippets.acl.clone(),
+        })
       },
       None => match self.haproxy_parse_error {
-        Some(ref e) => HaproxyDisplay::Error(format!("Error: {}", e)),
-        None => HaproxyDisplay::Error("Loading...".to_string()),
+        Some(ref e) => {
+          log::trace!("ConfigView::draw: Displaying error: {}", e);
+          HaproxyDisplay::Error(format!("Error: {}", e))
+        },
+        None => {
+          log::trace!("ConfigView::draw: Displaying loading message");
+          HaproxyDisplay::Error("Loading...".to_string())
+        },
       },
     };
 
@@ -272,7 +365,7 @@ impl Component for ConfigView {
         let acl_frame = code_layout[1];
         let backend_frame = code_layout[2];
 
-
+        let render_start = Instant::now();
         let frontend = Paragraph::new(snippets.frontend.join("\n").into_text()?)
           .block(Block::default().borders(Borders::ALL).title("Frontend"));
         f.render_widget(frontend, frontend_frame);
@@ -284,6 +377,8 @@ impl Component for ConfigView {
         let backend = Paragraph::new(snippets.backend.join("\n").into_text()?)
           .block(Block::default().borders(Borders::ALL).title("Backend"));
         f.render_widget(backend, backend_frame);
+        
+        log::trace!("ConfigView::draw: Widget rendering took: {:?}", render_start.elapsed());
       },
       HaproxyDisplay::Error(ref e) => {
         let error = Paragraph::new(e.clone())
@@ -292,21 +387,34 @@ impl Component for ConfigView {
       },
     }
 
+    let elapsed = start.elapsed();
+    if elapsed.as_millis() > 1 {
+      log::debug!("ConfigView::draw: Total draw took: {:?}", elapsed);
+    } else {
+      log::trace!("ConfigView::draw: Total draw took: {:?}", elapsed);
+    }
     Ok(())
   }
 
   fn register_config_handler(&mut self, config: Config) -> Result<()> {
+    log::debug!("ConfigView::register_config_handler: Registering config");
     self.config = config;
     Ok(())
   }
 
   fn update(&mut self, action: Action) -> Result<Option<Action>> {
+    log::trace!("ConfigView::update: Received action: {:?}", action);
     match action {
       Action::UseItem(backend_name) => {
+        log::info!("ConfigView::update: Switching to backend: {}", backend_name);
         self.selected_backend = Some(backend_name);
+        self.parse_config_snippets()?;
         Ok(None)
       },
-      _ => Ok(None),
+      _ => {
+        log::trace!("ConfigView::update: Ignoring action: {:?}", action);
+        Ok(None)
+      },
     }
   }
 }
