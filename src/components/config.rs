@@ -263,13 +263,40 @@ impl ConfigView {
     log::debug!("ConfigView::parse_config_snippets: Total parsing took: {:?}", start.elapsed());
     Ok(())
   }
+
+  fn ensure_config_loaded(&mut self) -> Result<()> {
+    // If we already have parsed snippets or an error, we're done
+    if self.parsed_snippets.is_some() || self.haproxy_parse_error.is_some() {
+      return Ok(());
+    }
+
+    // If we don't have a PID yet, we can't load config
+    if self.pid.is_none() {
+      return Ok(());
+    }
+
+    log::debug!("ConfigView::ensure_config_loaded: Starting deferred config loading");
+    
+    match self.find_config() {
+      Ok(_) => {
+        self.parse_config_snippets()?;
+        log::debug!("ConfigView::ensure_config_loaded: Config loaded and parsed successfully");
+      },
+      Err(e) => {
+        log::error!("ConfigView::ensure_config_loaded: Config loading error: {}", e);
+        self.haproxy_parse_error = Some(Box::new(e));
+      },
+    }
+    
+    Ok(())
+  }
 }
 
 impl Component for ConfigView {
   fn init(&mut self, _rect: Rect) -> Result<()> {
     use std::time::Instant;
     let start = Instant::now();
-    log::debug!("ConfigView::init: Starting initialization");
+    log::debug!("ConfigView::init: Starting lightweight initialization");
     
     let socket_path = &self.config.paths.socket;
     log::debug!("ConfigView::init: Connecting to socket: {}", socket_path);
@@ -301,18 +328,9 @@ impl Component for ConfigView {
         self.pid = Some(pid.parse().unwrap());
         log::debug!("ConfigView::init: Found HAProxy PID: {}", pid);
         
-        match self.find_config() {
-          Ok(_) => {
-            self.parse_config_snippets()?;
-            log::debug!("ConfigView::init: Config found and parsed successfully");
-            break;
-          },
-          Err(e) => {
-            log::error!("ConfigView::init: Config parsing error: {}", e);
-            self.haproxy_parse_error = Some(Box::new(e));
-            break;
-          },
-        }
+        // Don't do expensive config parsing here - let it happen later
+        log::debug!("ConfigView::init: Deferring config parsing to allow UI to render");
+        break;
       } else {
         log::warn!("ConfigView::init: No Pid line found in HAProxy info response");
       }
@@ -320,7 +338,7 @@ impl Component for ConfigView {
       break;
     }
 
-    log::debug!("ConfigView::init: Total initialization took: {:?}", start.elapsed());
+    log::debug!("ConfigView::init: Lightweight initialization took: {:?}", start.elapsed());
     Ok(())
   }
 
@@ -328,6 +346,9 @@ impl Component for ConfigView {
     use std::time::Instant;
     let start = Instant::now();
     log::trace!("ConfigView::draw: Starting draw");
+    
+    // Ensure config is loaded (happens on first draw, allows Loading... to show initially)
+    self.ensure_config_loaded()?;
     
     let content = match self.parsed_snippets {
       Some(ref snippets) => {
